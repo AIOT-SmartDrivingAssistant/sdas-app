@@ -1,0 +1,31 @@
+.wrapper{
+  border-bottom: 2px solid var(--primary-color);
+}
+
+.content{
+  height: 100%;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+}
+
+
+.action{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 20px;
+}
+
+.action img{
+  margin-right: 2rem;
+  cursor: pointer;
+}
+
+.pageTitle{
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--primary-color);
+}

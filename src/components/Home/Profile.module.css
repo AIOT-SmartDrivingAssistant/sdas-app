@@ -1,0 +1,88 @@
+.avatarContainer {
+  position: relative;
+  display: block;
+}
+
+.editIcon {
+  position: absolute;
+  bottom: 0.625rem;
+  right: 0.625rem;
+  background-color: var(--primary-color);
+  color: white;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 0.125rem 0.3125rem rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s;
+}
+
+.avatar {
+  width: 7.5rem;
+  height: 7.5rem;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.edit-icon:hover {
+  background-color: #003f8a;
+}
+
+.inputField {
+  border-radius: 1.25rem;
+  border: 0.0625rem solid #ced4da;
+  padding: 0.75rem;
+  font-size: 1rem;
+  width: 100%;
+  transition: border-color 0.3s ease-in-out;
+  outline: none;
+  box-shadow: none;
+}
+
+.inputField:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0.3125rem rgba(0, 123, 255, 0.3);
+}
+
+.formControl {
+  color: var(--primary-color);
+  font-weight: 400;
+  padding: 0.8rem;
+  border-radius: 1rem;
+  margin: 0.4rem 1rem 1rem 1rem;
+}
+
+.formControl::placeholder {
+  color: #B0BEC5;
+  font-weight: 400;
+}
+
+.submitButton {
+  background-color: var(--primary-color);
+  border: none;
+  color: white;
+  width: 11rem;
+  height: 3.125rem;
+  border-radius: 0.625rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  margin-top: 1rem;
+}
+
+.submitButton:hover {
+  background-color: #003f8a;
+}
+
+.saveButtonContainer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.smallIcon {
+  font-size: 12px;
+}
