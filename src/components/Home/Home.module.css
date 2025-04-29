@@ -32,3 +32,13 @@
     backdrop-filter: blur(2px);
     border-radius: inherit;
 }
+
+.panel {
+    transition: all 0.3s ease;
+  }
+  
+  .blurred {
+    filter: blur(2px);
+    opacity: 0.6;
+    pointer-events: none;
+  }

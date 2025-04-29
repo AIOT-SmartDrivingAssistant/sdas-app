@@ -1,5 +1,5 @@
 :root {
-  --primary-color: #0A2B6C;
+  --primary-color: #0a2b6c;
   --black: #000;
   --white: #fff;
   --text-color: #161823;
@@ -73,4 +73,30 @@ body {
   .tippy-box[data-placement^='bottom'] > .tippy-arrow:before {
     top: -8px;
   }
+}
+
+.bg-primary-btn {
+  color: #fff;
+  background-color: #022f6c;
+}
+
+.bg-primary-btn:hover,
+.bg-primary-btn:active {
+  transform: scale(1.05);
+  color: #fff !important;
+  transition: transform 0.1s ease;
+  background-color: #022f6cdd !important;
+}
+
+.bg-gray-200 {
+  background-color: #e5e7ea;
+  color: #022f6c;
+}
+
+.bg-gray-200:hover,
+.bg-gray-200:active {
+  transition: transform 0.1s ease;
+  transform: scale(1.05);
+  background-color: #e5e7eaaa !important;
+  color: #022f6c !important;
 }

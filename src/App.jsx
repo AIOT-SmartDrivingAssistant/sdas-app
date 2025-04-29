@@ -5,7 +5,8 @@ import { publicRoutes } from './Routes'
 import DefaultLayout from './components/Home'
 import Auth from './pages/Auth'
 import { UserProvider } from './hooks/UserContext.jsx'
-
+import 'bootstrap/dist/css/bootstrap.min.css';
+import './utils/MockAPI.jsx';
 function App() {
   return (
     <UserProvider>

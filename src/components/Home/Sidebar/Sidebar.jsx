@@ -55,7 +55,7 @@ const SideBar = () => {
             <div className={styles.icon}>
               <i className="fa-solid fa-gears"></i>
             </div>
-            Devices
+            Services
           </NavLink>
         </li>
         <li>
