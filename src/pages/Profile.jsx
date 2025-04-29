@@ -46,26 +46,24 @@ function Profile() {
       setError(null);
 
       try {
-        const response = await axios.get(
-          `${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/`,
-          {
-            withCredentials: true,
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          }
-        );
+        const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include'
+        });
 
-        if (response.status === 200) {
-          const data = response.data;
-          data.date_of_birth = formatDateForInput(data.date_of_birth);
-          console.log('Dữ liệu tải về:', data);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+          // TODO: handle error response
 
-          setUser(data);
-          setFormData(data);
-        } else {
-          throw new Error('Unexpected response status');
         }
+
+        const data = await response.json();
+        data.date_of_birth = formatDateForInput(data.date_of_birth);
+        console.log('Dữ liệu tải về:', data);
+
+        setUser(data);
+        setFormData(data);
       } catch (error) {
         console.error('Lỗi khi tải dữ liệu:', error);
         if (error.response?.status === 401) {
@@ -107,27 +105,30 @@ function Profile() {
       };
       console.log('Update data:', dataToSend);
 
-      const response = await axios.patch(
-        `${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/`,
-        dataToSend,
-        {
-          withCredentials: true,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSend),
+        credentials: 'include'
+      });
 
-      if (response.status === 200) {
-        console.log('Response:', response.data);
-        setUser(response.data);
-        // Thêm hành động vào history
-        addActionToHistory('user_update', {
-          updatedFields: Object.keys(dataToSend),
-          status: 'success',
-        });
-        alert('Profile updated successfully!');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+        // TODO: handle error response
+
       }
+
+      const data = await response.json();
+      console.log('Response:', data);
+      setUser(data);
+
+      // Thêm hành động vào history
+      addActionToHistory('user_update', {
+        updatedFields: Object.keys(dataToSend),
+        status: 'success',
+      });
+
+      alert('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating user data:', error);
       const errorMessage =
@@ -151,25 +152,27 @@ function Profile() {
       const avatarFormData = new FormData();
       avatarFormData.append('file', file);
 
-      const response = await axios.patch(
-        `${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/avatar`,
-        avatarFormData,
-        {
-          withCredentials: true,
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/avatar`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'multipart/form-data' },
+        body: JSON.stringify(avatarFormData),
+        credentials: 'include'
+      });
 
-      if (response.status === 200) {
-        console.log('Avatar updated successfully:', response.data);
-        // Thêm hành động vào history
-        addActionToHistory('avatar_update', {
-          action: 'upload',
-          status: 'success',
-        });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+        // TODO: handle error response
+
       }
+
+      const data = await response.json();
+      console.log('Avatar updated successfully:', data);
+
+      // Thêm hành động vào history
+      addActionToHistory('avatar_update', {
+        action: 'upload',
+        status: 'success',
+      });
     } catch (error) {
       console.error('Error updating avatar:', error);
       const errorMessage =
@@ -177,6 +180,7 @@ function Profile() {
           ? 'Unauthorized access. Please log in again.'
           : 'Failed to update avatar. Please try again later.';
       setError(errorMessage);
+
       // Thêm hành động thất bại vào history
       addActionToHistory('avatar_update', {
         action: 'upload',
@@ -190,25 +194,27 @@ function Profile() {
     e.preventDefault();
 
     try {
-      const response = await axios.delete(
-        `${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/avatar`,
-        {
-          withCredentials: true,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/avatar`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
 
-      if (response.status === 200) {
-        console.log('Avatar deleted successfully:', response.data);
-        setAvatar(defaultAvatar);
-        // Thêm hành động vào history
-        addActionToHistory('avatar_update', {
-          action: 'delete',
-          status: 'success',
-        });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+        // TODO: handle error response
+
       }
+
+      const data = await response.json();
+      console.log('Avatar deleted successfully:', data);
+      setAvatar(defaultAvatar);
+
+      // Thêm hành động vào history
+      addActionToHistory('avatar_update', {
+        action: 'delete',
+        status: 'success',
+      });
     } catch (error) {
       console.error('Error deleting avatar:', error);
       const errorMessage =
@@ -216,6 +222,7 @@ function Profile() {
           ? 'Unauthorized access. Please log in again.'
           : 'Failed to delete avatar. Please try again later.';
       setError(errorMessage);
+      
       // Thêm hành động thất bại vào history
       addActionToHistory('avatar_update', {
         action: 'delete',

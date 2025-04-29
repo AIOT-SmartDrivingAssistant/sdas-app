@@ -41,30 +41,43 @@ export default function activityHistory() {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`${import.meta.env.VITE_SERVER_URL}/app/history`, {
-        withCredentials: true,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      // const response = await axios.get(`${import.meta.env.VITE_SERVER_URL}/app/history`, {
+      //   withCredentials: true,
+      //   headers: { 'Content-Type': 'application/json' },
+      // });
+      const response = await fetch(
+        `${import.meta.env.VITE_SERVER_URL}/app/history`,
+        {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include'
+        }
+      );
 
-      if (response && response.data) {
-        console.log('History fetched successfully: ', response.data);
-
-        // Chuyển đổi dữ liệu API sang định dạng hiển thị
-        const formattedActivities = response.data.map((item, index) => ({
-          id: index + 1,
-          time: formatTimestamp(item.timestamp),
-          type: mapServiceType(item.service_type),
-          status: item.description,
-        }));
-
-        // Sắp xếp dữ liệu thời gian mới nhất lên trước
-        formattedActivities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-        // Giới hạn số lượng items
-        const limitedActivities = formattedActivities.slice(0, MAX_ITEMS);
-
-        setActivities(limitedActivities);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+        // TODO: handle error response
+      
       }
+
+      const data = await response.json();
+      console.log('History fetched successfully: ', data);
+
+      // Chuyển đổi dữ liệu API sang định dạng hiển thị
+      const formattedActivities = data.map((item, index) => ({
+        id: index + 1,
+        time: formatTimestamp(item.timestamp),
+        type: mapServiceType(item.service_type),
+        status: item.description,
+      }));
+
+      // Sắp xếp dữ liệu thời gian mới nhất lên trước
+      formattedActivities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      // Giới hạn số lượng items
+      const limitedActivities = formattedActivities.slice(0, MAX_ITEMS);
+
+      setActivities(limitedActivities);
     } catch (error) {
       if (error.response && error.response.status === 401) {
         setError('Unauthorized. Please login again.');

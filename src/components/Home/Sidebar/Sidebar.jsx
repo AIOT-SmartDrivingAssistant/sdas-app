@@ -2,29 +2,32 @@ import styles from './Sidebar.module.css';
 import { NavLink, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import Robot from '../../../assets/robot.svg';
-import axios from 'axios';
 
 const SideBar = () => {
   const navigate = useNavigate();
 
   const handleLogout = async (e) => {
     e.preventDefault();
-    try {
-      const response = await axios.patch(`${import.meta.env.VITE_SERVER_URL}/auth/logout`, {}, {
-        withCredentials: true,
-        headers: { 'Content-Type': 'application/json' }
-      });
 
-      if (response.status === 200) {
-        console.log('Logout successful: ', response.data);
-        navigate('/');
-      } else {
-        alert("Something's wrong!");
+    fetch(`${import.meta.env.VITE_SERVER_URL}/auth/logout`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include'
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    } catch (error) {
-      console.log(error);
-      alert('Failed to logout. Please try again.');
-    }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Logout successful:', data);
+      navigate('/');
+    })
+    .catch(error => {
+      console.error('Logout error:', error);
+      alert('An error occurred during logout');
+    });
   };
 
   return (

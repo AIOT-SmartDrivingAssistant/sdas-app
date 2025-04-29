@@ -1,8 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useContext } from 'react';
 
-import axios from 'axios'; 
-
 import { UserContext } from '../../hooks/UserContext.jsx';
 
 function LoginForm({ showSignUp }) {
@@ -24,23 +22,32 @@ function LoginForm({ showSignUp }) {
       username: username,
       password: password
     }
-    
-    axios.patch(`${import.meta.env.VITE_SERVER_URL}/auth/login`, request, 
-      {
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'application/json'
-        }
+
+    fetch(`${import.meta.env.VITE_SERVER_URL}/auth/login`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username: username,
+        password: password
+      }),
+      credentials: 'include'  // equivalent to withCredentials: true in axios
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    )
-      .then(response => {
-        console.log(`Login successful with response: ${response}`);
-        navigate('/home');
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        alert('An error occurred during login');
-      });
+      return response.json();
+    })
+    .then(data => {
+      console.log('Login successful:', data);
+      navigate('/home');
+    })
+    .catch(error => {
+      console.error('Login error:', error);
+      alert('An error occurred during login');
+    });
   };
 
   return (

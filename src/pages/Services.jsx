@@ -42,27 +42,44 @@ function Services() {
     const newServicesState = { ...servicesState, [serviceType]: newValue };
 
     try {
-      const response = await axios.patch(
+      // const response = await axios.patch(
+      //   `${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/iot/service`,
+      //   { [serviceType]: newValue },
+      //   {
+      //     withCredentials: true,
+      //     headers: { 'Content-Type': 'application/json' },
+      //   }
+      // );
+      const response = await fetch(
         `${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/iot/service`,
-        { [serviceType]: newValue },
         {
-          withCredentials: true,
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            [serviceType]: newValue
+          }),
+          credentials: 'include'
         }
       );
 
-      if (response.status === 200) {
-        setServicesState(newServicesState);
-        // Thêm hành động vào history
-        addActionToHistory('service_toggle', {
-          serviceType,
-          value: newValue,
-          status: 'success',
-        });
-        console.log(`Service ${serviceType} updated to ${newValue}`);
-      } else {
-        throw new Error('Unexpected response status');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+        // TODO: handle error response
+
       }
+
+      const data = await response.json();
+      console.log('Service response:', data);
+
+      setServicesState(newServicesState);
+      console.log(`Service ${serviceType} updated to ${newValue}`);
+
+      // Thêm hành động vào history
+      addActionToHistory('service_toggle', {
+        serviceType,
+        value: newValue,
+        status: 'success',
+      });
     } catch (error) {
       console.error('Error updating service:', error.message, error.response?.data);
       const errorMessage =
@@ -73,6 +90,7 @@ function Services() {
           : 'Failed to update service. Please try again later.';
       setError(errorMessage);
       setServicesState(prevState);
+
       // Thêm hành động thất bại vào history
       addActionToHistory('service_toggle', {
         serviceType,
@@ -98,29 +116,35 @@ function Services() {
 
     try {
       const requests = Object.keys(servicesState).map((serviceType) =>
-        axios.patch(
+        fetch(
           `${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/iot/service`,
-          { [serviceType]: newValue },
           {
-            withCredentials: true,
+            method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              [serviceType]: newValue
+            }),
+            credentials: 'include'
           }
         )
       );
 
       const responses = await Promise.all(requests);
 
-      if (responses.every((response) => response.status === 200)) {
+      if (responses.every((response) => response.ok)) {
         setServicesState(newServicesState);
+        console.log(`All services updated to ${newValue}`);
+
         // Thêm hành động vào history
         addActionToHistory('service_toggle', {
           serviceType: 'all',
           value: newValue,
           status: 'success',
         });
-        console.log(`All services updated to ${newValue}`);
       } else {
         throw new Error('One or more requests failed');
+        // TODO: handle error response
+
       }
     } catch (error) {
       console.error('Error updating all services:', error.message, error.response?.data);
@@ -132,6 +156,7 @@ function Services() {
           : 'Failed to update all services. Please try again later.';
       setError(errorMessage);
       setServicesState(prevState);
+      
       // Thêm hành động thất bại vào history
       addActionToHistory('service_toggle', {
         serviceType: 'all',

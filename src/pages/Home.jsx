@@ -69,22 +69,30 @@ const Home = () => {
     };
   }, []);
 
-  const handleGetUserData = async () => {
-    try {
-      const response = await axios.get(`${import.meta.env.VITE_SERVER_URL}/user/`, {
-        withCredentials: true,
-        headers: { 'Content-Type': 'application/json' },
-      });
+  const handleGetUserData = async (e) => {
+    e.preventDefault();
 
-      if (response) {
-        console.log('User data fetched successfully: ', response.data);
+    fetch(`${import.meta.env.VITE_SERVER_URL}/user/`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        console.log('User data fetched successfully:', data);
+        // TODO: handle user data as needed
         return true;
-      }
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-      setErrors((prev) => ({ ...prev, general: 'Failed to fetch user data.' }));
-      return false;
-    }
+      })
+      .catch((error) => {
+        console.error('Error fetching user data:', error);
+        setErrors((prev) => ({ ...prev, general: 'Failed to fetch user data.' }));
+        return false;
+      });
   };
 
   const handleGetSensorData = async () => {
@@ -129,13 +137,27 @@ const Home = () => {
 
       const sensorTypesParam = activeSensorTypes.join(',');
 
-      const response = await axios.get(`${import.meta.env.VITE_SERVER_URL}/app/sensor_data`, {
-        params: { sensor_types: sensorTypesParam },
-        withCredentials: true,
+      // const response = await axios.get(`${import.meta.env.VITE_SERVER_URL}/app/sensor_data`, {
+      //   params: { sensor_types: sensorTypesParam },
+      //   withCredentials: true,
+      //   headers: { 'Content-Type': 'application/json' },
+      // });
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/app/sensor_data`, {
+        method: 'GET',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ sensor_types: sensorTypesParam }),
       });
 
-      if (!response?.data?.length) {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+        // TODO: handle error
+
+      }
+
+      const responseData = await response.json();
+
+      if (responseData?.length) {
         setErrors((prev) => ({
           ...prev,
           air_cond_service: servicesState.air_cond_service === 'on' ? 'No sensor data available.' : null,
@@ -145,7 +167,7 @@ const Home = () => {
         return;
       }
 
-      const sensorList = response.data.slice(0, 10);
+      const sensorList = responseData.slice(0, 10);
       const newData = { ...data };
       const newSensorData = { ...sensorData };
 
