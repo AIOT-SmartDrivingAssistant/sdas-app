@@ -11,7 +11,7 @@ function Services() {
     drowsiness_service: false,
     headlight_service: false,
     dist_service: false,
-    allServices: false,
+    system_status: false,
   });
   const [error, setError] = useState(null);
 
@@ -56,7 +56,8 @@ function Services() {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            [serviceType]: newValue
+            "service_type": serviceType,
+            "value": newValue
           }),
           credentials: 'include'
         }
@@ -88,48 +89,29 @@ function Services() {
     }
   };
 
-  const handleAllServicesToggle = async (value) => {
-    if (isLoading['allServices']) return;
+  const handleSystemToggle = async (value) => {
+    if (isLoading['IoTSystem']) return;
 
     const newValue = value ? serviceModes.on : serviceModes.off;
-    console.log(`Toggling all services to ${newValue}`);
+    console.log(`Toggle IoT System to ${newValue}`);
     setIsLoading((prev) => ({ ...prev, allServices: true }));
     setError(null);
 
-    const prevState = { ...servicesState };
-    const newServicesState = Object.fromEntries(Object.keys(servicesState).map((key) => [key, newValue]));
-
     try {
-      const requests = Object.keys(servicesState).map((serviceType) =>
-        fetch(
-          `${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/iot/service`,
+      const response = await fetch(
+          `${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/iot/${newValue}`,
           {
-            method: 'PATCH',
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              [serviceType]: newValue
-            }),
             credentials: 'include'
           }
-        )
-      );
+        );
 
-      const responses = await Promise.all(requests);
-
-      if (responses.every((response) => response.ok)) {
-        setServicesState(newServicesState);
-        console.log(`All services updated to ${newValue}`);
-
-        // Thêm hành động vào history
-        addActionToHistory('service_toggle', {
-          serviceType: 'all',
-          value: newValue,
-          status: 'success',
-        });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       } else {
-        throw new Error('One or more requests failed');
-        // TODO: handle error response
-
+        console.log('System response:', response.statusText);
+        system_status = !system_status
       }
     } catch (error) {
       console.error('Error updating all services:', error.message, error.response?.data);
@@ -194,18 +176,18 @@ function Services() {
         </div>
       )}
 
-      {/* Switch cho All Services */}
+      {/* Switch cho IoT System */}
       <div className={[styles.servicesToggle, 'form-check form-switch mb-4'].join(' ')}>
         <label
           className={[styles.servicesToggleLabel, 'form-check-label'].join(' ')}
           role="switch"
-          htmlFor="allServicesToggle"
+          htmlFor="IoTSystemToggle"
         >
-          <h4 className={styles.servicesToggleHeader}>All Services</h4>
-          <div className={styles.servicesToggleText}>Control all services at once</div>
+          <h4 className={styles.servicesToggleHeader}>IoT System</h4>
+          <div className={styles.servicesToggleText}>Toggle system</div>
         </label>
         <div className="d-flex align-items-center">
-          {isLoading['allServices'] && (
+          {isLoading['IoTSystem'] && (
             <div className="spinner-border spinner-border-sm me-2" role="status">
               <span className="visually-hidden">Loading...</span>
             </div>
@@ -213,10 +195,9 @@ function Services() {
           <input
             type="checkbox"
             className="form-check-input"
-            id="allServicesToggle"
-            checked={isAllServicesOn}
-            onChange={() => handleAllServicesToggle(!isAllServicesOn)}
-            disabled={isLoading['allServices']}
+            id="IoTSystemToggle"
+            onChange={() => handleSystemToggle(!system_status)}
+            disabled={isLoading['IoTSystem']}
           />
         </div>
       </div>
