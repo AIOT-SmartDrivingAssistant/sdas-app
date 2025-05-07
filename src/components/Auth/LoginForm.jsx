@@ -31,8 +31,7 @@ function LoginForm({ showSignUp }) {
       body: JSON.stringify({
         username: username,
         password: password
-      }),
-      credentials: 'include'  // equivalent to withCredentials: true in axios
+      })  // equivalent to withCredentials: true in axios
     })
     .then(response => {
       if (!response.ok) {

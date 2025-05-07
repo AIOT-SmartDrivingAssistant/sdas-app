@@ -73,13 +73,6 @@ function Services() {
 
       setServicesState(newServicesState);
       console.log(`Service ${serviceType} updated to ${newValue}`);
-
-      // Thêm hành động vào history
-      addActionToHistory('service_toggle', {
-        serviceType,
-        value: newValue,
-        status: 'success',
-      });
     } catch (error) {
       console.error('Error updating service:', error.message, error.response?.data);
       const errorMessage =
@@ -90,14 +83,6 @@ function Services() {
           : 'Failed to update service. Please try again later.';
       setError(errorMessage);
       setServicesState(prevState);
-
-      // Thêm hành động thất bại vào history
-      addActionToHistory('service_toggle', {
-        serviceType,
-        value: newValue,
-        status: 'failed',
-        error: errorMessage,
-      });
     } finally {
       setIsLoading((prev) => ({ ...prev, [serviceType]: false }));
     }
@@ -156,14 +141,6 @@ function Services() {
           : 'Failed to update all services. Please try again later.';
       setError(errorMessage);
       setServicesState(prevState);
-      
-      // Thêm hành động thất bại vào history
-      addActionToHistory('service_toggle', {
-        serviceType: 'all',
-        value: newValue,
-        status: 'failed',
-        error: errorMessage,
-      });
     } finally {
       setIsLoading((prev) => ({ ...prev, allServices: false }));
     }

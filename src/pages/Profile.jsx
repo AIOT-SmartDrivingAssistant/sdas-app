@@ -122,12 +122,6 @@ function Profile() {
       console.log('Response:', data);
       setUser(data);
 
-      // Thêm hành động vào history
-      addActionToHistory('user_update', {
-        updatedFields: Object.keys(dataToSend),
-        status: 'success',
-      });
-
       alert('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating user data:', error);
@@ -153,7 +147,7 @@ function Profile() {
       avatarFormData.append('file', file);
 
       const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/avatar`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'multipart/form-data' },
         body: JSON.stringify(avatarFormData),
         credentials: 'include'
@@ -167,12 +161,6 @@ function Profile() {
 
       const data = await response.json();
       console.log('Avatar updated successfully:', data);
-
-      // Thêm hành động vào history
-      addActionToHistory('avatar_update', {
-        action: 'upload',
-        status: 'success',
-      });
     } catch (error) {
       console.error('Error updating avatar:', error);
       const errorMessage =
@@ -222,13 +210,6 @@ function Profile() {
           ? 'Unauthorized access. Please log in again.'
           : 'Failed to delete avatar. Please try again later.';
       setError(errorMessage);
-      
-      // Thêm hành động thất bại vào history
-      addActionToHistory('avatar_update', {
-        action: 'delete',
-        status: 'failed',
-        error: errorMessage,
-      });
     }
   };
 
