@@ -1,24 +1,20 @@
 import styles from '../components/Home/activityHistory.module.css';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
+import { UserContext } from '../hooks/UserContext.jsx';
 
-import axios from 'axios';
-
-export default function activityHistory() {
-  // Dữ liệu cho lịch sử hoạt động
-  const [activities, setActivities] = useState([]);
+export default function ActivityHistory() {
+  const { activityLog } = useContext(UserContext);
+  const [initialActivities, setInitialActivities] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // State cho phân trang
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(8);
 
-  // Giới hạn tối đa 5 trang
   const MAX_PAGES = 5;
   const ITEMS_PER_PAGE = 8;
   const MAX_ITEMS = MAX_PAGES * ITEMS_PER_PAGE;
 
-  // Định dạng thời gian từ timestamp
   const formatTimestamp = (timestamp) => {
     const date = new Date(timestamp);
     const hours = String(date.getHours()).padStart(2, '0');
@@ -27,7 +23,6 @@ export default function activityHistory() {
     return `${hours}:${minutes}:${seconds}`;
   };
 
-  // Map loại dịch vụ từ API sang hiển thị
   const mapServiceType = (type) => {
     const typeMap = {
       driver_monitoring: 'Driver monitoring',
@@ -37,145 +32,117 @@ export default function activityHistory() {
     return typeMap[type] || type;
   };
 
-  const handleGetHistory = async () => {
+  // Fetch 3-4 mục đầu tiên từ server
+  const handleGetInitialHistory = async () => {
     setLoading(true);
     setError(null);
     try {
-      // const response = await axios.get(`${import.meta.env.VITE_SERVER_URL}/app/history`, {
-      //   withCredentials: true,
-      //   headers: { 'Content-Type': 'application/json' },
-      // });
-      const response = await fetch(
-        `${import.meta.env.VITE_SERVER_URL}/app/history`,
-        {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include'
-        }
-      );
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/app/history`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-        // TODO: handle error response
-      
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('History fetched successfully: ', data);
+      console.log('Initial history fetched successfully: ', data);
 
-      // Chuyển đổi dữ liệu API sang định dạng hiển thị
-      const formattedActivities = data.map((item, index) => ({
+      const formattedInitialActivities = data.slice(0, 4).map((item, index) => ({
         id: index + 1,
         time: formatTimestamp(item.timestamp),
         type: mapServiceType(item.service_type),
         status: item.description,
       }));
 
-      // Sắp xếp dữ liệu thời gian mới nhất lên trước
-      formattedActivities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-      // Giới hạn số lượng items
-      const limitedActivities = formattedActivities.slice(0, MAX_ITEMS);
-
-      setActivities(limitedActivities);
+      setInitialActivities(formattedInitialActivities);
     } catch (error) {
-      if (error.response && error.response.status === 401) {
-        setError('Unauthorized. Please login again.');
-        console.error('Authentication error:', error);
-      } else {
-        setError('Failed to load activity history. Please try again later.');
-        console.error('Server error:', error);
-      }
+      console.error('Error fetching initial history:', error);
+      const errorMessage =
+        error.message.includes('401')
+          ? 'Unauthorized. Please login again.'
+          : 'Failed to load initial activity history. Please try again later.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
-  // Lấy dữ liệu khi component được mount
+
   useEffect(() => {
-    handleGetHistory();
-
-    // Cập nhật dữ liệu mỗi 30 giây
-    const refreshInterval = setInterval(() => {
-      handleGetHistory();
-    }, 30000);
-
-    return () => {
-      clearInterval(refreshInterval);
-    };
+    handleGetInitialHistory();
   }, []);
 
-  // Giả lập cập nhật dữ liệu cho thời gian thực
-  // useEffect(() => {
-  //   // Cập nhật thời gian hiện tại mỗi giây
-  //   const activityInterval = setInterval(() => {
-  //     const now = new Date();
-  //     const hours = String(now.getHours()).padStart(2, '0');
-  //     const minutes = String(now.getMinutes()).padStart(2, '0');
-  //     const seconds = String(now.getSeconds()).padStart(2, '0');
+  // Format dữ liệu từ activityLog (notifications và actions từ EventSource)
+  const formattedActivityLog = activityLog.map((item, index) => {
+    if (item.type === 'notification') {
+      return {
+        id: initialActivities.length + index + 1,
+        time: formatTimestamp(item.timestamp),
+        type: item.service_type || 'Notification',
+        status: item.message,
+      };
+    } else if (item.type === 'action') {
+      const actionDetails = item.details;
+      let typeDisplay = '';
+      let statusDisplay = '';
 
-  //     // Chọn type để thêm vào
-  //     const types = ['Driver monitoring', 'Air conditioning', 'Smart headlights'];
-  //     const type = types[0];
+      switch (item.actionType) {
+        case 'service_toggle':
+          typeDisplay = `Service Toggle (${actionDetails.serviceType})`;
+          statusDisplay = `Set to ${actionDetails.value} - ${
+            actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
+          }`;
+          break;
+        case 'user_update':
+          typeDisplay = 'User Profile Update';
+          statusDisplay =
+            actionDetails.status === 'success'
+              ? 'Success'
+              : `Failed (${actionDetails.error})`;
+          break;
+        case 'avatar_update':
+          typeDisplay = 'Avatar Update';
+          statusDisplay = `${actionDetails.action} - ${
+            actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
+          }`;
+          break;
+        case 'slider_update':
+          typeDisplay = `Slider Update (${actionDetails.sliderName})`;
+          statusDisplay = `Set to ${actionDetails.value} - ${
+            actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
+          }`;
+          break;
+        default:
+          typeDisplay = item.actionType;
+          statusDisplay = JSON.stringify(actionDetails);
+      }
 
-  //     let newStatus = '';
-  //     if (type === types[0]) {
-  //       // 3 status of driver monitoring: normal, have signs of drowsiness, danger
-  //       const randomNumber = Math.floor(Math.random() * 3);
-  //       if (randomNumber === 0) {
-  //         newStatus = 'Normal';
-  //       } else if (randomNumber === 1) {
-  //         newStatus = 'Have signs of drowsiness';
-  //       } else if (randomNumber === 2) {
-  //         newStatus = 'Danger';
-  //       }
-  //     } else if (type === types[1]) {
-  //       const oldTemp = Math.floor(Math.random * 10) + 18;
-  //       const newTemp = Math.floor(Math.random * 10) + 18;
-  //       newStatus = `Change from ${oldTemp} to ${newTemp}`;
-  //     } else if (type === types[2]) {
-  //       // From 1 to 4
-  //       const oldTemp = 2;
-  //       const newTemp = 4;
-  //       newStatus = `Change from ${oldTemp} to ${newTemp}`;
-  //     }
+      return {
+        id: initialActivities.length + index + 1,
+        time: formatTimestamp(item.timestamp),
+        type: typeDisplay,
+        status: statusDisplay,
+      };
+    }
+    return null;
+  }).filter(item => item !== null);
 
-  //     setActivities((prevActivity) => {
-  //       // Thêm hoạt động mới vào đầu danh sách
-  //       const newActivity = {
-  //         id: activities.length + 1,
-  //         time: `${hours}:${minutes}:${seconds}`,
-  //         type: type,
-  //         status: newStatus,
-  //       };
+  // Gộp initialActivities và formattedActivityLog
+  const allActivities = [...initialActivities, ...formattedActivityLog].slice(0, MAX_ITEMS);
 
-  //       const newActivities = [newActivity, ...prevActivity];
-  //       if (newActivities.length > MAX_ITEMS) {
-  //         return newActivities.slice(0, MAX_ITEMS);
-  //       }
-  //       return newActivities;
-  //     });
-  //   }, 15000);
-
-  //   // Cleanup các inteval khi component unmout
-  //   return () => {
-  //     clearInterval(activityInterval);
-  //   };
-  // }, [activities.length]);
-
-  // Phân trang
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = activities.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = allActivities.slice(indexOfFirstItem, indexOfLastItem);
 
-  // Tính tổng số trang
-  const totalPages = Math.ceil(activities.length / itemsPerPage);
+  const totalPages = Math.ceil(allActivities.length / itemsPerPage);
 
-  // Xử lý thay đổi trang
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
   };
 
-  // Xây dựng phân trang
   const renderPagination = () => {
     const pageNumbers = [];
     for (let i = 1; i <= totalPages; i++) {
@@ -194,11 +161,9 @@ export default function activityHistory() {
                 if (currentPage !== 1) handlePageChange(currentPage - 1);
               }}
             >
-              <span aria-hidden="true">&laquo;</span>
+              <span aria-hidden="true">«</span>
             </a>
           </li>
-
-          {/*  Số trang */}
           {pageNumbers.map((number) => (
             <li key={number} className={`page-item ${currentPage === number ? 'active' : ''}`}>
               <a
@@ -213,7 +178,6 @@ export default function activityHistory() {
               </a>
             </li>
           ))}
-          {/* last */}
           <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
             <a
               className="page-link"
@@ -223,7 +187,7 @@ export default function activityHistory() {
                 if (currentPage !== totalPages) handlePageChange(currentPage + 1);
               }}
             >
-              <span aria-hidden="true">&raquo;</span>
+              <span aria-hidden="true">»</span>
             </a>
           </li>
         </ul>
@@ -242,7 +206,7 @@ export default function activityHistory() {
       ) : error ? (
         <div className="alert alert-danger" role="alert">
           {error}
-          <button className="btn btn-sm btn-outline-danger float-end" onClick={handleGetHistory}>
+          <button className="btn btn-sm btn-outline-danger float-end" onClick={handleGetInitialHistory}>
             Retry
           </button>
         </div>
@@ -259,11 +223,11 @@ export default function activityHistory() {
         </thead>
         <tbody>
           {currentItems.length > 0 ? (
-            currentItems.map((acitvity) => (
-              <tr key={acitvity.id}>
-                <td>{acitvity.time}</td>
-                <td>{acitvity.type}</td>
-                <td>{acitvity.status}</td>
+            currentItems.map((activity) => (
+              <tr key={activity.id}>
+                <td>{activity.time}</td>
+                <td>{activity.type}</td>
+                <td>{activity.status}</td>
               </tr>
             ))
           ) : (
@@ -277,11 +241,11 @@ export default function activityHistory() {
       </table>
       <div className="d-flex mt-3 justify-content-between align-items-center">
         <div className={styles.activityFooter}>
-          {activities.length > 0
-            ? `Showing ${currentItems.length} in ${activities.length} activities`
+          {allActivities.length > 0
+            ? `Showing ${currentItems.length} in ${allActivities.length} activities`
             : 'No activities to display'}
         </div>
-        {activities.length > itemsPerPage && renderPagination()}
+        {allActivities.length > itemsPerPage && renderPagination()}
       </div>
     </div>
   );
