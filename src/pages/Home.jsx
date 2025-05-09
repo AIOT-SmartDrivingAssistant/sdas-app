@@ -2,7 +2,6 @@ import React, { useState, useEffect, useContext } from 'react';
 import styles from '../components/Home/Home.module.css';
 import axios from 'axios';
 import { UserContext } from '../hooks/UserContext.jsx';
-import RangeSlider from 'react-range-slider-input';
 import 'react-range-slider-input/dist/style.css';
 import debounce from 'lodash.debounce';
 import { SensorTypes, IOTServices } from '../utils/IOTServices.jsx';
@@ -10,7 +9,8 @@ import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 
 const Home = () => {
-  const { servicesState, setServicesState, notifications, sensorData, setSensorData, addActionToHistory, user } = useContext(UserContext);
+  const { servicesState, setServicesState, notifications, sensorData, setSensorData, addActionToHistory, user } =
+    useContext(UserContext);
 
   const [data, setData] = useState({
     distance: 0,
@@ -98,12 +98,15 @@ const Home = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // Timeout 5 giây
 
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/app/sensor_data?sensor_types=${sensorTypesParam}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        signal: controller.signal,
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_SERVER_URL}/app/sensor_data?sensor_types=${sensorTypesParam}`,
+        {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          signal: controller.signal,
+        },
+      );
 
       clearTimeout(timeoutId);
       console.log('Response received from /app/sensor_data:', response.status, response.statusText);
@@ -340,7 +343,8 @@ const Home = () => {
         <Modal.Body>
           {currentNotification ? (
             <p>
-              <strong>Service:</strong> {currentNotification.service_type}<br />
+              <strong>Service:</strong> {currentNotification.service_type}
+              <br />
               <strong>Message:</strong> {currentNotification.notification}
             </p>
           ) : (
@@ -358,7 +362,11 @@ const Home = () => {
         {servicesState.air_cond_service !== undefined && (
           <div className="col-12 col-lg-4">
             <div
-              className={[styles.panel, 'p-4 shadow bg-white rounded', servicesState.air_cond_service !== 'on' ? styles.blurred : ''].join(' ')}
+              className={[
+                styles.panel,
+                'p-4 shadow bg-white rounded',
+                servicesState.air_cond_service !== 'on' ? styles.blurred : '',
+              ].join(' ')}
             >
               <h4 className="mb-3">Air conditioning</h4>
               {loading.air_cond_service ? (
@@ -439,7 +447,11 @@ const Home = () => {
         {servicesState.drowsiness_service !== undefined && (
           <div className="col-12 col-lg-4">
             <div
-              className={[styles.panel, 'p-4 shadow bg-white rounded', servicesState.drowsiness_service !== 'on' ? styles.blurred : ''].join(' ')}
+              className={[
+                styles.panel,
+                'p-4 shadow bg-white rounded',
+                servicesState.drowsiness_service !== 'on' ? styles.blurred : '',
+              ].join(' ')}
             >
               <h4 className="mb-3">Driver Monitoring</h4>
               {loading.drowsiness_service ? (
@@ -451,7 +463,10 @@ const Home = () => {
               ) : (
                 <>
                   <div className="mb-3 d-flex align-items-center">
-                    <div className={`rounded-circle me-2 ${getDriverStatusColor()}`} style={{ width: '16px', height: '16px' }}></div>
+                    <div
+                      className={`rounded-circle me-2 ${getDriverStatusColor()}`}
+                      style={{ width: '16px', height: '16px' }}
+                    ></div>
                     {errors.drowsiness_service ? (
                       <p className="mb-0 fw-bold fs-4 text-danger">{errors.drowsiness_service}</p>
                     ) : (
@@ -492,7 +507,11 @@ const Home = () => {
         {servicesState.headlight_service !== undefined && (
           <div className="col-12 col-lg-4">
             <div
-              className={[styles.panel, 'p-4 shadow bg-white rounded', servicesState.headlight_service !== 'on' ? styles.blurred : ''].join(' ')}
+              className={[
+                styles.panel,
+                'p-4 shadow bg-white rounded',
+                servicesState.headlight_service !== 'on' ? styles.blurred : '',
+              ].join(' ')}
             >
               <h4 className="mb-3">Smart Headlights</h4>
               {loading.headlight_service ? (
@@ -554,7 +573,11 @@ const Home = () => {
         {servicesState.dist_service !== undefined && (
           <div className="col-12 col-lg-4">
             <div
-              className={[styles.panel, 'p-4 shadow bg-white rounded', servicesState.dist_service !== 'on' ? styles.blurred : ''].join(' ')}
+              className={[
+                styles.panel,
+                'p-4 shadow bg-white rounded',
+                servicesState.dist_service !== 'on' ? styles.blurred : '',
+              ].join(' ')}
             >
               <h4 className="mb-3">Distance Sensor</h4>
               {loading.dist_service ? (

@@ -8,9 +8,7 @@ export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [servicesState, setServicesState] = useState(() => {
     const savedState = localStorage.getItem('servicesState');
-    return savedState
-      ? JSON.parse(savedState)
-      : Object.fromEntries(Object.keys(IOTServices).map((key) => [key, true]));
+    return savedState ? JSON.parse(savedState) : Object.fromEntries(Object.keys(IOTServices).map((key) => [key, true]));
   });
   const [sensorData, setSensorData] = useState({
     temperature: 0,
@@ -39,10 +37,12 @@ export const UserProvider = ({ children }) => {
       newHistory[type] = newActions;
 
       // Cập nhật activityLog khi thêm action
-      setActivityLog((prevLog) => [
-        { type: 'action', actionType: type, details: newAction, timestamp: newAction.timestamp },
-        ...prevLog,
-      ].slice(0, 40)); // Giới hạn tối đa 40 mục
+      setActivityLog((prevLog) =>
+        [{ type: 'action', actionType: type, details: newAction, timestamp: newAction.timestamp }, ...prevLog].slice(
+          0,
+          40,
+        ),
+      ); // Giới hạn tối đa 40 mục
 
       return newHistory;
     });
@@ -52,10 +52,9 @@ export const UserProvider = ({ children }) => {
     setNotifications((prev) => {
       const newNotifications = [...prev, notification];
       // Cập nhật activityLog khi có thông báo mới
-      setActivityLog((prevLog) => [
-        { type: 'notification', ...notification, timestamp: new Date().toISOString() },
-        ...prevLog,
-      ].slice(0, 40)); // Giới hạn tối đa 40 mục
+      setActivityLog((prevLog) =>
+        [{ type: 'notification', ...notification, timestamp: new Date().toISOString() }, ...prevLog].slice(0, 40),
+      ); // Giới hạn tối đa 40 mục
       return newNotifications;
     });
   };
@@ -65,13 +64,10 @@ export const UserProvider = ({ children }) => {
       if (user) return;
 
       try {
-        const response = await axios.get(
-          `${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/`,
-          {
-            withCredentials: true,
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
+        const response = await axios.get(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/`, {
+          withCredentials: true,
+          headers: { 'Content-Type': 'application/json' },
+        });
 
         if (response.status === 200) {
           console.log('Dữ liệu người dùng fetch thành công:', response.data);
@@ -88,13 +84,10 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     const fetchServicesConfig = async () => {
       try {
-        const response = await axios.get(
-          `${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/app/config`,
-          {
-            withCredentials: true,
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
+        const response = await axios.get(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/app/config`, {
+          withCredentials: true,
+          headers: { 'Content-Type': 'application/json' },
+        });
 
         if (response.status === 200) {
           console.log('Cấu hình dịch vụ fetch thành công:', response.data);
@@ -114,10 +107,9 @@ export const UserProvider = ({ children }) => {
   }, [servicesState]);
 
   useEffect(() => {
-    const source = new EventSource(
-      `${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/app/events`,
-      { withCredentials: true }
-    );
+    const source = new EventSource(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/app/events`, {
+      withCredentials: true,
+    });
 
     source.onmessage = (event) => {
       const notification = JSON.parse(event.data);

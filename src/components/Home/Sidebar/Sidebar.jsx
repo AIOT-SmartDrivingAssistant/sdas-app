@@ -2,6 +2,7 @@ import styles from './Sidebar.module.css';
 import { NavLink, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import Robot from '../../../assets/robot.svg';
+import toast from 'react-hot-toast';
 
 const SideBar = () => {
   const navigate = useNavigate();
@@ -12,22 +13,22 @@ const SideBar = () => {
     fetch(`${import.meta.env.VITE_SERVER_URL}/auth/logout`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include'
+      credentials: 'include',
     })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    })
-    .then(data => {
-      console.log('Logout successful:', data);
-      navigate('/');
-    })
-    .catch(error => {
-      console.error('Logout error:', error);
-      alert('An error occurred during logout');
-    });
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        console.log('Logout successful:', data);
+        navigate('/');
+      })
+      .catch((error) => {
+        console.error('Logout error:', error);
+        toast.error('An error occurred during logout');
+      });
   };
 
   return (
@@ -64,7 +65,7 @@ const SideBar = () => {
         <li>
           <NavLink to="/profile" className={({ isActive }) => clsx(styles.sidebarLink, isActive ? styles.active : '')}>
             <div className={styles.icon}>
-              <i class="fa-solid fa-user"></i>
+              <i className="fa-solid fa-user"></i>
             </div>
             Profile
           </NavLink>
