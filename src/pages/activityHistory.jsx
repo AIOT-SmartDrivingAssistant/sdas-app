@@ -41,23 +41,15 @@ export default function activityHistory() {
     setLoading(true);
     setError(null);
     try {
-      // const response = await axios.get(`${import.meta.env.VITE_SERVER_URL}/app/history`, {
-      //   withCredentials: true,
-      //   headers: { 'Content-Type': 'application/json' },
-      // });
-      const response = await fetch(
-        `${import.meta.env.VITE_SERVER_URL}/app/history`,
-        {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include'
-        }
-      );
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/app/history`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
         // TODO: handle error response
-      
       }
 
       const data = await response.json();
@@ -247,42 +239,43 @@ export default function activityHistory() {
           </button>
         </div>
       ) : (
-        <></>
-      )}
-      <table className="table table-striped table-bordered table-hover table-responsive mb-0">
-        <thead>
-          <tr className={styles.tableHeader}>
-            <th width="10%">Time</th>
-            <th width="20%">Type</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {currentItems.length > 0 ? (
-            currentItems.map((acitvity) => (
-              <tr key={acitvity.id}>
-                <td>{acitvity.time}</td>
-                <td>{acitvity.type}</td>
-                <td>{acitvity.status}</td>
+        <>
+          <table className="table table-striped table-bordered table-hover table-responsive mb-0">
+            <thead>
+              <tr className={styles.tableHeader}>
+                <th width="10%">Time</th>
+                <th width="20%">Type</th>
+                <th>Status</th>
               </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan={3} className="text-center py-3">
-                No activity records found.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-      <div className="d-flex mt-3 justify-content-between align-items-center">
-        <div className={styles.activityFooter}>
-          {activities.length > 0
-            ? `Showing ${currentItems.length} in ${activities.length} activities`
-            : 'No activities to display'}
-        </div>
-        {activities.length > itemsPerPage && renderPagination()}
-      </div>
+            </thead>
+            <tbody>
+              {currentItems.length > 0 ? (
+                currentItems.map((acitvity) => (
+                  <tr key={acitvity.id}>
+                    <td>{acitvity.time}</td>
+                    <td>{acitvity.type}</td>
+                    <td>{acitvity.status}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={3} className="text-center py-3">
+                    No activity records found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          <div className="d-flex mt-3 justify-content-between align-items-center">
+            <div className={styles.activityFooter}>
+              {activities.length > 0
+                ? `Showing ${currentItems.length} in ${activities.length} activities`
+                : 'No activities to display'}
+            </div>
+            {activities.length > itemsPerPage && renderPagination()}
+          </div>
+        </>
+      )}
     </div>
   );
 }
