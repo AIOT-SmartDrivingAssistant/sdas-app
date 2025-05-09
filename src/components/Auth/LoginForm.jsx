@@ -24,7 +24,7 @@ function LoginForm({ showSignUp }) {
     }
 
     fetch(`${import.meta.env.VITE_SERVER_URL}/auth/login`, {
-      method: 'PATCH',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },

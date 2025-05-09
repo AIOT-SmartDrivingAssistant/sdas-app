@@ -18,19 +18,19 @@ function SignUpForm({ showLogin }) {
       password: password,
     }
     
-    axios.post(`${import.meta.env.VITE_SERVER_URL}/auth/register`, request,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      }
-    )
-      .then(response => {
+    fetch(`${import.meta.env.VITE_SERVER_URL}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(request),
+    })
+      .then((response) => {
         console.log('Sign-up successful: ', response.data);
         showLogin();
       })
-      .catch(error => {
+      .catch((error) => {
         console.error('Error:', error);
         alert('An error occurred during sign-up');
       });

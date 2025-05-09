@@ -28,8 +28,10 @@ export default function ActivityHistory() {
       driver_monitoring: 'Driver monitoring',
       air_cond_service: 'Air conditioning',
       smart_headlights: 'Smart headlights',
+      headlight: 'Smart headlights', // Ánh xạ headlight
+      air_cond_temp: 'Air conditioning temperature', // Ánh xạ air_cond_temp
     };
-    return typeMap[type] || type;
+    return typeMap[type] || type; // Trả về type gốc nếu không có ánh xạ
   };
 
   // Fetch 3-4 mục đầu tiên từ server
@@ -37,34 +39,34 @@ export default function ActivityHistory() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/app/history`, {
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/app/action_history`, {
         method: 'GET',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
       });
-
+  
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
-
+  
       const data = await response.json();
-      console.log('Initial history fetched successfully: ', data);
-
-      const formattedInitialActivities = data.slice(0, 4).map((item, index) => ({
+      console.log('Action history fetched successfully: ', data);
+  
+      const formattedInitialActivities = data.map((item, index) => ({
         id: index + 1,
         time: formatTimestamp(item.timestamp),
-        type: mapServiceType(item.service_type),
+        type: mapServiceType(item.service_type) || item.service_type, // Sử dụng mapServiceType để ánh xạ
         status: item.description,
       }));
-
-      setInitialActivities(formattedInitialActivities);
+  
+      setInitialActivities(formattedInitialActivities.slice(0, 4)); // Giữ 3-4 mục đầu tiên
     } catch (error) {
-      console.error('Error fetching initial history:', error);
+      console.error('Error fetching action history:', error);
       const errorMessage =
         error.message.includes('401')
           ? 'Unauthorized. Please login again.'
-          : 'Failed to load initial activity history. Please try again later.';
+          : 'Failed to load action history. Please try again later.';
       setError(errorMessage);
     } finally {
       setLoading(false);

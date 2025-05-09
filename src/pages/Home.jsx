@@ -69,9 +69,8 @@ const Home = () => {
     };
   }, []);
 
-  const handleGetUserData = async (e) => {
-    e.preventDefault();
-
+  const handleGetUserData = async () => {
+    // Xóa e.preventDefault() vì không có event trong ngữ cảnh này
     fetch(`${import.meta.env.VITE_SERVER_URL}/user/`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
@@ -85,7 +84,6 @@ const Home = () => {
       })
       .then((data) => {
         console.log('User data fetched successfully:', data);
-        // TODO: handle user data as needed
         return true;
       })
       .catch((error) => {
