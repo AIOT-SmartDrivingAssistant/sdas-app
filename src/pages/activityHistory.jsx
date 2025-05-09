@@ -77,7 +77,13 @@ export default function ActivityHistory() {
 
   // Format activityLog entries for display
   const formattedActivityLog = Array.isArray(activityLog)
-    ? activityLog.map((item, index) => {
+    ? activityLog.reduce((acc, item, index) => {
+        // Chỉ hiển thị một lần cho mỗi hành động dựa trên ID hoặc timestamp + type
+        const uniqueKey = item.id || item.timestamp + item.type + (item.details?.serviceType || '');
+        if (acc.some((existing) => existing.uniqueKey === uniqueKey)) {
+          return acc;
+        }
+
         let typeDisplay = '';
         let statusDisplay = '';
 
@@ -115,16 +121,25 @@ export default function ActivityHistory() {
           }
         }
 
-        return {
-          id: initialActivities.length + index + 1,
+        acc.push({
+          id: initialActivities.length + acc.length + 1,
           time: formatTimestamp(item.timestamp),
           type: typeDisplay,
           status: statusDisplay,
-        };
-      })
+          uniqueKey,
+        });
+
+        return acc;
+      }, [])
     : [];
 
-  const allActivities = [...initialActivities, ...formattedActivityLog].slice(0, MAX_ITEMS);
+  const allActivities = [...initialActivities, ...formattedActivityLog]
+    .filter((item, index, self) => {
+      // Loại bỏ các hoạt động trùng lặp dựa trên time + type + status
+      const key = `${item.time}-${item.type}-${item.status}`;
+      return index === self.findIndex((t) => `${t.time}-${t.type}-${t.status}` === key);
+    })
+    .slice(0, MAX_ITEMS);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;

@@ -26,16 +26,28 @@ export const UserProvider = ({ children }) => {
   const [activityLog, setActivityLog] = useState([]);
 
   const addActionToHistory = (type, action) => {
+    // Tạo một ID duy nhất cho mỗi hành động
+    const actionId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+    const newAction = { id: actionId, timestamp: new Date().toISOString(), ...action };
+
     setActionHistory((prev) => {
       const newHistory = { ...prev };
       const currentActions = newHistory[type] || [];
-      const newAction = { timestamp: new Date().toISOString(), ...action };
       const newActions = [newAction, ...currentActions].slice(0, 10);
       newHistory[type] = newActions;
 
-      setActivityLog((prevLog) =>
-        [{ type: 'action', actionType: type, details: newAction, timestamp: newAction.timestamp }, ...prevLog].slice(0, 40)
-      );
+      // Thêm vào activityLog với ID duy nhất
+      setActivityLog((prevLog) => {
+        const existingIds = new Set(prevLog.map((item) => item.id));
+        // Chỉ thêm nếu ID chưa tồn tại
+        if (!existingIds.has(actionId)) {
+          return [
+            { id: actionId, type: 'action', actionType: type, details: newAction, timestamp: newAction.timestamp },
+            ...prevLog,
+          ].slice(0, 40);
+        }
+        return prevLog;
+      });
 
       return newHistory;
     });
@@ -70,11 +82,14 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     const fetchServicesConfig = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/app/services_status`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-        });
+        const response = await fetch(
+          `${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/app/services_status`,
+          {
+            method: 'GET',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+          },
+        );
 
         if (response.ok) {
           const data = await response.json();
@@ -105,9 +120,7 @@ export const UserProvider = ({ children }) => {
       const notification = JSON.parse(event.data);
       console.log('Received SSE notification:', notification);
       const timestamp = new Date().toISOString();
-      setActivityLog((prevLog) =>
-        [{ type: 'notification', ...notification, timestamp }, ...prevLog].slice(0, 40)
-      );
+      setActivityLog((prevLog) => [{ type: 'notification', ...notification, timestamp }, ...prevLog].slice(0, 40));
     };
 
     source.onerror = (error) => {
