@@ -77,7 +77,7 @@ function SignUpForm({ showLogin }) {
   };
 
   return (
-    <div id="sign-up-form" className="form-container bg-white text-center">
+    <div id="sign-up-form" className="form-container bg-white text-center animate-fadeIn">
       <h2 className="primary-color mb-4 auth-title">Sign Up</h2>
       <form onSubmit={handleSignUp}>
         <div className="mb-3 input-icon-container input-group">

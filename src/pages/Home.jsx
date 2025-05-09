@@ -380,19 +380,11 @@ const Home = () => {
                   <div className="row">
                     <div className="mb-3 col-md-6">
                       <p className="mb-1 small text-body-tertiary">Temperature</p>
-                      {errors.air_cond_service ? (
-                        <p className="fw-bold fs-2 mb-1 text-danger">{errors.air_cond_service}</p>
-                      ) : (
-                        <p className="fw-bold fs-2 mb-1">{data.temperature?.toFixed(1)}°C</p>
-                      )}
+                      <p className="fw-bold fs-2 mb-1">{data.temperature?.toFixed(1)}°C</p>
                     </div>
                     <div className="mb-3 col-md-6">
                       <p className="mb-1 small text-body-tertiary">Humidity</p>
-                      {errors.air_cond_service ? (
-                        <p className="fw-bold fs-2 mb-1 text-danger">{errors.air_cond_service}</p>
-                      ) : (
-                        <p className="fw-bold fs-2 mb-1">{data.humidity?.toFixed(1)}%</p>
-                      )}
+                      <p className="fw-bold fs-2 mb-1">{data.humidity?.toFixed(1)}%</p>
                     </div>
                   </div>
                   <div className="mb-2">
@@ -589,19 +581,15 @@ const Home = () => {
               ) : (
                 <div className="d-flex justify-content-between align-items-center">
                   <div>
-                    {errors.dist_service ? (
-                      <p className="fw-bold fs-2 mb-1 text-danger">{errors.dist_service}</p>
-                    ) : (
-                      <>
-                        <p className="fw-bold fs-2 mb-1">{data.distance} cm</p>
-                        <button
-                          disabled
-                          className={`rounded btn text-white ${getDistanceWarning(data.distance).class} px-3 py-1`}
-                        >
-                          {getDistanceWarning(data.distance).message}
-                        </button>
-                      </>
-                    )}
+                    <>
+                      <p className="fw-bold fs-2 mb-1">{data.distance} cm</p>
+                      <button
+                        disabled
+                        className={`rounded btn text-white ${getDistanceWarning(data.distance).class} px-3 py-1`}
+                      >
+                        {getDistanceWarning(data.distance).message}
+                      </button>
+                    </>
                   </div>
                   <div className={`${styles.distanceSensorIcon} rounded-5`}>
                     <i className="fa-solid fa-bolt"></i>
