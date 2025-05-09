@@ -10,7 +10,7 @@ function Services() {
     drowsiness_service: false,
     headlight_service: false,
     dist_service: false,
-    system: false, // Thay allServices thành system để rõ nghĩa hơn
+    system: false,
   });
   const [error, setError] = useState(null);
 
@@ -26,7 +26,6 @@ function Services() {
     [IOTServices.dist_service]: { title: 'Distance', description: 'Distance between objects' },
   };
 
-  // Kiểm tra xem hệ thống có đang bật không (dựa trên bất kỳ dịch vụ nào đang on)
   const isSystemOn = Object.values(servicesState).some((state) => state === serviceModes.on);
 
   const handleToggleChange = async (serviceType, value) => {
@@ -45,12 +44,12 @@ function Services() {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [serviceType]: newValue }),
+        body: JSON.stringify({ service_type: serviceType, value: newValue }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        throw new Error(errorData.message || errorData.detail || `HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
@@ -64,12 +63,17 @@ function Services() {
         status: 'success',
       });
     } catch (error) {
-      console.error('Error updating service:', error);
+      console.error('Error updating service:', {
+        message: error.message,
+        stack: error.stack,
+      });
       const errorMessage =
         error.message.includes('401')
           ? 'Unauthorized access. Please log in again.'
           : error.message.includes('422')
           ? 'Invalid request. Please try again.'
+          : error.message.includes('429')
+          ? 'Too many requests. Please try again later.'
           : 'Failed to update service. Please try again later.';
       setError(errorMessage);
       setServicesState(prevState);
@@ -84,7 +88,6 @@ function Services() {
     }
   };
 
-  // Xử lý bật/tắt toàn bộ hệ thống
   const handleSystemToggle = async (value) => {
     if (isLoading['system']) return;
 
@@ -99,11 +102,17 @@ function Services() {
     );
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/${command}`, {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/iot/${command}`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -119,12 +128,19 @@ function Services() {
         status: 'success',
       });
     } catch (error) {
-      console.error(`Error turning ${command} the system:`, error);
+      console.error(`Error turning ${command} the system:`, {
+        message: error.message,
+        stack: error.stack,
+      });
       const errorMessage =
         error.message.includes('401')
           ? 'Unauthorized access. Please log in again.'
           : error.message.includes('400')
           ? 'Invalid request. Please try again.'
+          : error.message.includes('429')
+          ? 'Too many requests. Please try again later.'
+          : error.name === 'AbortError'
+          ? 'Request timed out. Please try again.'
           : 'Failed to update system state. Please try again later.';
       setError(errorMessage);
       setServicesState(prevState);

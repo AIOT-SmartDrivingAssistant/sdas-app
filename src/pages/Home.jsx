@@ -70,30 +70,36 @@ const Home = () => {
   }, []);
 
   const handleGetUserData = async () => {
-    // Xóa e.preventDefault() vì không có event trong ngữ cảnh này
-    fetch(`${import.meta.env.VITE_SERVER_URL}/user/`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((data) => {
-        console.log('User data fetched successfully:', data);
-        return true;
-      })
-      .catch((error) => {
-        console.error('Error fetching user data:', error);
-        setErrors((prev) => ({ ...prev, general: 'Failed to fetch user data.' }));
-        return false;
+    console.log('Starting handleGetUserData...');
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/user/`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.detail || errorData.message}`);
+      }
+
+      const data = await response.json();
+      console.log('User data fetched successfully:', data);
+      return true;
+    } catch (error) {
+      console.error('Error fetching user data:', {
+        message: error.message,
+        stack: error.stack,
+      });
+      setErrors((prev) => ({ ...prev, general: 'Failed to fetch user data.' }));
+      return false;
+    }
   };
 
   const handleGetSensorData = async () => {
+    console.log('Starting handleGetSensorData...');
+    console.log('servicesState:', servicesState);
+
     setErrors((prev) => ({
       ...prev,
       air_cond_service: null,
@@ -123,46 +129,51 @@ const Home = () => {
         }
       });
 
+      console.log('activeSensorTypes:', activeSensorTypes);
+
       if (activeSensorTypes.length === 0) {
+        console.log('No active sensor types, skipping fetch.');
         setLoading({
           air_cond_service: false,
           dist_service: false,
           headlight_service: false,
           drowsiness_service: false,
         });
-        return;
+        return true;
       }
 
       const sensorTypesParam = activeSensorTypes.join(',');
+      console.log('Sending request to /app/sensor_data with sensor_types:', sensorTypesParam);
 
-      // const response = await axios.get(`${import.meta.env.VITE_SERVER_URL}/app/sensor_data`, {
-      //   params: { sensor_types: sensorTypesParam },
-      //   withCredentials: true,
-      //   headers: { 'Content-Type': 'application/json' },
-      // });
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/app/sensor_data`, {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // Timeout 5 giây
+
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/app/sensor_data?sensor_types=${sensorTypesParam}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ sensor_types: sensorTypesParam }),
+        signal: controller.signal,
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-        // TODO: handle error
+      clearTimeout(timeoutId);
+      console.log('Response received from /app/sensor_data:', response.status, response.statusText);
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.detail || errorData.message}`);
       }
 
       const responseData = await response.json();
+      console.log('Sensor data received:', responseData);
 
-      if (responseData?.length) {
+      if (!responseData?.length) {
         setErrors((prev) => ({
           ...prev,
           air_cond_service: servicesState.air_cond_service === 'on' ? 'No sensor data available.' : null,
           dist_service: servicesState.dist_service === 'on' ? 'No sensor data available.' : null,
           headlight_service: servicesState.headlight_service === 'on' ? 'No sensor data available.' : null,
         }));
-        return;
+        return true;
       }
 
       const sensorList = responseData.slice(0, 10);
@@ -200,16 +211,26 @@ const Home = () => {
 
       setData(newData);
       setSensorData(newSensorData);
+      return true;
     } catch (error) {
-      console.error('Error fetching sensor data:', error);
-      const errorMessage =
-        error.response?.status === 401 ? 'Unauthorized access. Please login again.' : 'Failed to fetch sensor data.';
+      console.error('Error fetching sensor data:', {
+        message: error.message,
+        stack: error.stack,
+      });
+      const errorMessage = error.message.includes('401')
+        ? 'Unauthorized access. Please login again.'
+        : error.message.includes('500')
+        ? 'Server error. Please try again later.'
+        : error.name === 'AbortError'
+        ? 'Request timed out. Please try again.'
+        : 'Failed to fetch sensor data.';
       setErrors((prev) => ({
         ...prev,
         air_cond_service: servicesState.air_cond_service === 'on' ? errorMessage : null,
         dist_service: servicesState.dist_service === 'on' ? errorMessage : null,
         headlight_service: servicesState.headlight_service === 'on' ? errorMessage : null,
       }));
+      return false;
     } finally {
       setLoading({
         air_cond_service: false,
@@ -221,17 +242,38 @@ const Home = () => {
   };
 
   useEffect(() => {
-    const initialize = async () => {
-      const userSuccess = await handleGetUserData();
-      if (userSuccess) {
+    const runInitialize = async () => {
+      try {
+        console.log('useEffect: Running initialize...');
+        const userSuccess = await handleGetUserData();
+        console.log('handleGetUserData result:', userSuccess);
+
+        if (!userSuccess) {
+          console.log('Failed to fetch user data, stopping initialize.');
+          setErrors((prev) => ({ ...prev, general: 'Failed to fetch user data.' }));
+          return;
+        }
+
+        console.log('Setting isInitialized to true');
         setIsInitialized(true);
-        await handleGetSensorData();
-      } else {
-        setErrors((prev) => ({ ...prev, general: 'Failed to initialize application.' }));
+
+        console.log('Calling handleGetSensorData...');
+        const sensorSuccess = await handleGetSensorData();
+        console.log('handleGetSensorData result:', sensorSuccess);
+
+        if (!sensorSuccess) {
+          console.log('Failed to fetch sensor data, setting error.');
+          setErrors((prev) => ({ ...prev, general: 'Failed to fetch sensor data.' }));
+        } else {
+          console.log('Initialize completed successfully.');
+        }
+      } catch (error) {
+        console.error('useEffect: Error in initialize:', error);
+        setErrors((prev) => ({ ...prev, general: 'Failed to initialize application: ' + error.message }));
       }
     };
 
-    initialize();
+    runInitialize();
   }, []);
 
   const getDistanceWarning = (distance) => {
@@ -265,7 +307,6 @@ const Home = () => {
 
       if (response.status === 200) {
         console.log(`Slider ${sliderName} API Response:`, response.data);
-        // Thêm hành động vào history
         addActionToHistory('slider_update', {
           sliderName,
           value: value[1],
@@ -274,7 +315,6 @@ const Home = () => {
       }
     } catch (error) {
       console.error(`Slider ${sliderName} Error:`, error.response?.data || error.message);
-      // Thêm hành động thất bại vào history
       addActionToHistory('slider_update', {
         sliderName,
         value: value[1],
@@ -468,7 +508,7 @@ const Home = () => {
               ) : (
                 <>
                   <div className="mb-3 d-flex align-items-center">
-                    <div className="rounded-circle me-2 bg-success" style={{ width: '16px', height: '16px' }}></div>
+                    <div className={`rounded-circle me-2 ${getDriverStatusColor()}`} style={{ width: '16px', height: '16px' }}></div>
                     {errors.drowsiness_service ? (
                       <p className="mb-0 fw-bold fs-4 text-danger">{errors.drowsiness_service}</p>
                     ) : (
