@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useContext } from 'react';
 import styles from '../components/Home/Home.module.css';
-import axios from 'axios';
+import debounce from 'lodash.debounce';
 import { UserContext } from '../hooks/UserContext.jsx';
 import 'react-range-slider-input/dist/style.css';
-import debounce from 'lodash.debounce';
 import { SensorTypes, IOTServices } from '../utils/IOTServices.jsx';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
@@ -23,7 +22,7 @@ const Home = () => {
     driverStatus: 'Alert',
     airConditioner: {
       status: 'Manual',
-      temperature: 0,
+      temperature: 1, // Giá trị mặc định trong khoảng 1-100
     },
   });
 
@@ -47,8 +46,7 @@ const Home = () => {
   const [currentNotification, setCurrentNotification] = useState(null);
 
   useEffect(() => {
-    // Watch for new notifications in activityLog
-    const latestEntry = activityLog[0]; // Most recent entry
+    const latestEntry = activityLog[0];
     if (latestEntry && latestEntry.type === 'notification') {
       setCurrentNotification(latestEntry);
       setShowModal(true);
@@ -56,9 +54,6 @@ const Home = () => {
   }, [activityLog]);
 
   const handleGetSensorData = async () => {
-    console.log('Starting handleGetSensorData...');
-    console.log('servicesState:', servicesState);
-
     setErrors((prev) => ({
       ...prev,
       air_cond_service: null,
@@ -88,10 +83,7 @@ const Home = () => {
         }
       });
 
-      console.log('activeSensorTypes:', activeSensorTypes);
-
       if (activeSensorTypes.length === 0) {
-        console.log('No active sensor types, skipping fetch.');
         setLoading({
           air_cond_service: false,
           dist_service: false,
@@ -102,8 +94,6 @@ const Home = () => {
       }
 
       const sensorTypesParam = activeSensorTypes.join(',');
-      console.log('Sending request to /app/sensor_data with sensor_types:', sensorTypesParam);
-
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
@@ -118,36 +108,20 @@ const Home = () => {
       );
 
       clearTimeout(timeoutId);
-      console.log('Response received from /app/sensor_data:', response.status, response.statusText);
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.detail || errorData.message}`);
       }
 
       const responseData = await response.json();
-      console.log('Sensor data received:', responseData);
-
-      if (!responseData?.length) {
-        setErrors((prev) => ({
-          ...prev,
-          air_cond_service: servicesState.air_cond_service === 'on' ? 'No sensor data available.' : null,
-          dist_service: servicesState.dist_service === 'on' ? 'No sensor data available.' : null,
-          headlight_service: servicesState.headlight_service === 'on' ? 'No sensor data available.' : null,
-        }));
-        return true;
-      }
-
       const sensorList = responseData.slice(0, 10);
       const newData = { ...data };
       const newSensorData = { ...sensorData };
 
       sensorList.forEach((sensor) => {
         const value = parseFloat(sensor.value);
-        let type = sensor.sensor_type
-          .toString()
-          .toLowerCase()
-          .replace(/\s+|\W+/g, '');
+        let type = sensor.sensor_type.toString().toLowerCase().replace(/\s+|\W+/g, '');
 
         switch (type) {
           case SensorTypes.temp:
@@ -175,10 +149,7 @@ const Home = () => {
       setSensorData(newSensorData);
       return true;
     } catch (error) {
-      console.error('Error fetching sensor data:', {
-        message: error.message,
-        stack: error.stack,
-      });
+      console.error('Error fetching sensor data:', error);
       const errorMessage = error.message.includes('401')
         ? 'Unauthorized access. Please login again.'
         : error.message.includes('500')
@@ -206,24 +177,13 @@ const Home = () => {
   useEffect(() => {
     const runInitialize = async () => {
       try {
-        console.log('useEffect: Running initialize...');
-        console.log('User data from context:', user);
-
-        console.log('Setting isInitialized to true');
         setIsInitialized(true);
-
-        console.log('Calling handleGetSensorData...');
         const sensorSuccess = await handleGetSensorData();
-        console.log('handleGetSensorData result:', sensorSuccess);
-
         if (!sensorSuccess) {
-          console.log('Failed to fetch sensor data, setting error.');
           setErrors((prev) => ({ ...prev, general: 'Failed to fetch sensor data.' }));
-        } else {
-          console.log('Initialize completed successfully.');
         }
       } catch (error) {
-        console.error('useEffect: Error in initialize:', error);
+        console.error('Error in initialize:', error);
         setErrors((prev) => ({ ...prev, general: 'Failed to initialize application: ' + error.message }));
       }
     };
@@ -243,33 +203,34 @@ const Home = () => {
   });
 
   const handleSliderChange = debounce(async (value, sliderName) => {
-    console.log('Updating slider:', sliderName, 'with value:', value);
     setSliderValues((prevValues) => ({
       ...prevValues,
       [sliderName]: value,
     }));
 
     try {
-      const data = {
-        service_type: sliderName,
-        value: value[1].toString(),
-      };
-
-      const response = await axios.post(`${import.meta.env.VITE_SERVER_URL}/iot/service`, data, {
-        withCredentials: true,
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/iot/service`, {
+        method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service_type: sliderName,
+          value: value[1].toString(),
+        }),
       });
 
-      if (response.status === 200) {
-        console.log(`Slider ${sliderName} API Response:`, response.data);
+      if (response.ok) {
+        console.log(`Slider ${sliderName} API Response:`, await response.json());
         addActionToHistory('slider_update', {
           sliderName,
           value: value[1],
           status: 'success',
         });
+      } else {
+        throw new Error('Failed to update slider');
       }
     } catch (error) {
-      console.error(`Slider ${sliderName} Error:`, error.response?.data || error.message);
+      console.error(`Slider ${sliderName} Error:`, error.message);
       addActionToHistory('slider_update', {
         sliderName,
         value: value[1],
@@ -289,14 +250,69 @@ const Home = () => {
     }));
   };
 
+  const sendACTemperatureToBackend = async (temperature) => {
+    if (servicesState.air_cond_service !== 'on') return;
+  
+    // Giới hạn giá trị từ 1 đến 100
+    const constrainedValue = Math.max(1, Math.min(100, temperature));
+  
+    try {
+      setLoading((prev) => ({ ...prev, air_cond_service: true }));
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/iot/service`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service_type: 'air_cond_temp',
+          value: constrainedValue.toString(),
+        }),
+      });
+  
+      if (response.ok) {
+        console.log('Temperature updated successfully:', await response.json());
+        setData((prevData) => ({
+          ...prevData,
+          airConditioner: {
+            ...prevData.airConditioner,
+            temperature: constrainedValue,
+          },
+        }));
+        addActionToHistory('service_toggle', {
+          serviceType: 'air_cond_temp',
+          value: constrainedValue,
+          status: 'success',
+        }); // Thêm dấu chấm phẩy ở đây
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to update temperature');
+      }
+    } catch (error) {
+      console.error('Error updating temperature:', error.message);
+      setErrors((prev) => ({
+        ...prev,
+        air_cond_service: 'Failed to update temperature.',
+      }));
+      addActionToHistory('service_toggle', {
+        serviceType: 'air_cond_temp',
+        value: constrainedValue,
+        status: 'failed',
+        error: error.message,
+      }); // Thêm dấu chấm phẩy ở đây
+    } finally {
+      setLoading((prev) => ({ ...prev, air_cond_service: false }));
+    }
+  };
+
   const setACTemperature = (temp) => {
+    const newTemp = Math.max(1, Math.min(100, temp));
     setData((prevData) => ({
       ...prevData,
       airConditioner: {
         ...prevData.airConditioner,
-        temperature: temp,
+        temperature: newTemp,
       },
     }));
+    sendACTemperatureToBackend(newTemp);
   };
 
   const getDriverStatusColor = () => {
@@ -431,15 +447,15 @@ const Home = () => {
                         <span className="me-2">Set:</span>
                         <button
                           className="btn btn-outline-secondary py-1 bg-gray-200 rounded"
-                          onClick={() => setACTemperature(Math.max(16, data.airConditioner.temperature - 1))}
+                          onClick={() => setACTemperature(data.airConditioner.temperature - 1)}
                           disabled={servicesState.air_cond_service !== 'on'}
                         >
                           -
                         </button>
-                        <span className="mx-2">{data.airConditioner.temperature}°C</span>
+                        <span className="mx-2">{data.airConditioner.temperature}</span>
                         <button
                           className="btn btn-outline-secondary py-1 bg-gray-200 rounded"
-                          onClick={() => setACTemperature(Math.min(30, data.airConditioner.temperature + 1))}
+                          onClick={() => setACTemperature(data.airConditioner.temperature + 1)}
                           disabled={servicesState.air_cond_service !== 'on'}
                         >
                           +
