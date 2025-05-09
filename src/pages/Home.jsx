@@ -9,7 +9,7 @@ import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 
 const Home = () => {
-  const { servicesState, setServicesState, notifications, sensorData, setSensorData, addActionToHistory, user } =
+  const { servicesState, setServicesState, sensorData, setSensorData, addActionToHistory, user, activityLog } =
     useContext(UserContext);
 
   const [data, setData] = useState({
@@ -45,6 +45,15 @@ const Home = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [currentNotification, setCurrentNotification] = useState(null);
+
+  useEffect(() => {
+    // Watch for new notifications in activityLog
+    const latestEntry = activityLog[0]; // Most recent entry
+    if (latestEntry && latestEntry.type === 'notification') {
+      setCurrentNotification(latestEntry);
+      setShowModal(true);
+    }
+  }, [activityLog]);
 
   const handleGetSensorData = async () => {
     console.log('Starting handleGetSensorData...');
@@ -96,7 +105,7 @@ const Home = () => {
       console.log('Sending request to /app/sensor_data with sensor_types:', sensorTypesParam);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // Timeout 5 giây
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       const response = await fetch(
         `${import.meta.env.VITE_SERVER_URL}/app/sensor_data?sensor_types=${sensorTypesParam}`,
@@ -198,7 +207,7 @@ const Home = () => {
     const runInitialize = async () => {
       try {
         console.log('useEffect: Running initialize...');
-        console.log('User data from context:', user); // Kiểm tra dữ liệu từ UserContext
+        console.log('User data from context:', user);
 
         console.log('Setting isInitialized to true');
         setIsInitialized(true);
