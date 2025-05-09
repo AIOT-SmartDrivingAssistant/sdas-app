@@ -10,7 +10,7 @@ import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 
 const Home = () => {
-  const { servicesState, setServicesState, addNotification, notifications, sensorData, setSensorData, addActionToHistory } = useContext(UserContext);
+  const { servicesState, setServicesState, notifications, sensorData, setSensorData, addActionToHistory, user } = useContext(UserContext);
 
   const [data, setData] = useState({
     distance: 0,
@@ -45,56 +45,6 @@ const Home = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [currentNotification, setCurrentNotification] = useState(null);
-
-  useEffect(() => {
-    const source = new EventSource(
-      `${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/app/events`,
-      { withCredentials: true }
-    );
-
-    source.onmessage = (event) => {
-      const notification = JSON.parse(event.data);
-      addNotification(notification);
-      setCurrentNotification(notification);
-      setShowModal(true);
-      console.log('Received SSE notification:', notification);
-    };
-
-    source.onerror = (error) => {
-      console.error('SSE error:', error);
-    };
-
-    return () => {
-      source.close();
-    };
-  }, []);
-
-  const handleGetUserData = async () => {
-    console.log('Starting handleGetUserData...');
-    try {
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/user/`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.detail || errorData.message}`);
-      }
-
-      const data = await response.json();
-      console.log('User data fetched successfully:', data);
-      return true;
-    } catch (error) {
-      console.error('Error fetching user data:', {
-        message: error.message,
-        stack: error.stack,
-      });
-      setErrors((prev) => ({ ...prev, general: 'Failed to fetch user data.' }));
-      return false;
-    }
-  };
 
   const handleGetSensorData = async () => {
     console.log('Starting handleGetSensorData...');
@@ -245,14 +195,7 @@ const Home = () => {
     const runInitialize = async () => {
       try {
         console.log('useEffect: Running initialize...');
-        const userSuccess = await handleGetUserData();
-        console.log('handleGetUserData result:', userSuccess);
-
-        if (!userSuccess) {
-          console.log('Failed to fetch user data, stopping initialize.');
-          setErrors((prev) => ({ ...prev, general: 'Failed to fetch user data.' }));
-          return;
-        }
+        console.log('User data from context:', user); // Kiểm tra dữ liệu từ UserContext
 
         console.log('Setting isInitialized to true');
         setIsInitialized(true);

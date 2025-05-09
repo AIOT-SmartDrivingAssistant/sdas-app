@@ -1,54 +1,90 @@
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { IOTServices } from '../utils/IOTServices.jsx';
 import axios from 'axios';
 
 export const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
-  // Lưu trữ dữ liệu từ các request
-  const [user, setUser] = useState(null); // Thông tin người dùng từ /user/
+  const [user, setUser] = useState(null);
   const [servicesState, setServicesState] = useState(() => {
     const savedState = localStorage.getItem('servicesState');
     return savedState
       ? JSON.parse(savedState)
       : Object.fromEntries(Object.keys(IOTServices).map((key) => [key, true]));
-  }); // Trạng thái dịch vụ từ /app/config
+  });
   const [sensorData, setSensorData] = useState({
     temperature: 0,
     humidity: 0,
     lightLevel: 0,
     distance: 0,
-  }); // Dữ liệu cảm biến từ /app/sensor_data
-  const [notifications, setNotifications] = useState([]); // Thông báo từ /app/events
+  });
+  const [notifications, setNotifications] = useState([]);
   const [sessionId, setSessionId] = useState(null);
 
-  // Lưu trữ action history theo loại
   const [actionHistory, setActionHistory] = useState({
-    service_toggle: [], // Hành động bật/tắt dịch vụ
-    user_update: [], // Hành động cập nhật thông tin người dùng
-    avatar_update: [], // Hành động upload/xóa avatar
+    service_toggle: [],
+    user_update: [],
+    avatar_update: [],
   });
 
-  // Hàm thêm hành động vào history, giới hạn 10 hành động mỗi loại
+  // Tạo activityLog từ notifications và actionHistory
+  const [activityLog, setActivityLog] = useState([]);
+
   const addActionToHistory = (type, action) => {
     setActionHistory((prev) => {
       const newHistory = { ...prev };
       const currentActions = newHistory[type] || [];
-      const newActions = [
-        { timestamp: new Date().toISOString(), ...action },
-        ...currentActions,
-      ].slice(0, 10); // Giữ tối đa 10 hành động
+      const newAction = { timestamp: new Date().toISOString(), ...action };
+      const newActions = [newAction, ...currentActions].slice(0, 10);
       newHistory[type] = newActions;
+
+      // Cập nhật activityLog khi thêm action
+      setActivityLog((prevLog) => [
+        { type: 'action', actionType: type, details: newAction, timestamp: newAction.timestamp },
+        ...prevLog,
+      ].slice(0, 40)); // Giới hạn tối đa 40 mục
+
       return newHistory;
     });
   };
 
-  // Hàm thêm thông báo mới
   const addNotification = (notification) => {
-    setNotifications((prev) => [...prev, notification]);
+    setNotifications((prev) => {
+      const newNotifications = [...prev, notification];
+      // Cập nhật activityLog khi có thông báo mới
+      setActivityLog((prevLog) => [
+        { type: 'notification', ...notification, timestamp: new Date().toISOString() },
+        ...prevLog,
+      ].slice(0, 40)); // Giới hạn tối đa 40 mục
+      return newNotifications;
+    });
   };
 
-  // Đồng bộ servicesState với server khi ứng dụng khởi động
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (user) return;
+
+      try {
+        const response = await axios.get(
+          `${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/`,
+          {
+            withCredentials: true,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+
+        if (response.status === 200) {
+          console.log('Dữ liệu người dùng fetch thành công:', response.data);
+          setUser(response.data);
+        }
+      } catch (error) {
+        console.error('Lỗi khi fetch dữ liệu người dùng:', error);
+      }
+    };
+
+    fetchUserData();
+  }, [user]);
+
   useEffect(() => {
     const fetchServicesConfig = async () => {
       try {
@@ -61,22 +97,42 @@ export const UserProvider = ({ children }) => {
         );
 
         if (response.status === 200) {
-          console.log('Services config fetched on startup:', response.data);
+          console.log('Cấu hình dịch vụ fetch thành công:', response.data);
           setServicesState(response.data);
           localStorage.setItem('servicesState', JSON.stringify(response.data));
         }
       } catch (error) {
-        console.error('Error fetching services config on startup:', error);
+        console.error('Lỗi khi fetch cấu hình dịch vụ:', error);
       }
     };
 
     fetchServicesConfig();
   }, []);
 
-  // Lưu servicesState vào localStorage mỗi khi nó thay đổi
   useEffect(() => {
     localStorage.setItem('servicesState', JSON.stringify(servicesState));
   }, [servicesState]);
+
+  useEffect(() => {
+    const source = new EventSource(
+      `${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/app/events`,
+      { withCredentials: true }
+    );
+
+    source.onmessage = (event) => {
+      const notification = JSON.parse(event.data);
+      console.log('Received SSE notification:', notification);
+      addNotification(notification);
+    };
+
+    source.onerror = (error) => {
+      console.error('SSE error:', error);
+    };
+
+    return () => {
+      source.close();
+    };
+  }, []);
 
   return (
     <UserContext.Provider
@@ -93,9 +149,12 @@ export const UserProvider = ({ children }) => {
         addNotification,
         actionHistory,
         addActionToHistory,
+        activityLog, // Thêm activityLog vào context
       }}
     >
       {children}
     </UserContext.Provider>
   );
 };
+
+export const useUserContext = () => useContext(UserContext);

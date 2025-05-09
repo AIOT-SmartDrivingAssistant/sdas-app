@@ -28,13 +28,12 @@ export default function ActivityHistory() {
       driver_monitoring: 'Driver monitoring',
       air_cond_service: 'Air conditioning',
       smart_headlights: 'Smart headlights',
-      headlight: 'Smart headlights', // Ánh xạ headlight
-      air_cond_temp: 'Air conditioning temperature', // Ánh xạ air_cond_temp
+      headlight: 'Smart headlights',
+      air_cond_temp: 'Air conditioning temperature',
     };
-    return typeMap[type] || type; // Trả về type gốc nếu không có ánh xạ
+    return typeMap[type] || type;
   };
 
-  // Fetch 3-4 mục đầu tiên từ server
   const handleGetInitialHistory = async () => {
     setLoading(true);
     setError(null);
@@ -44,23 +43,23 @@ export default function ActivityHistory() {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
       });
-  
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
-  
+
       const data = await response.json();
       console.log('Action history fetched successfully: ', data);
-  
+
       const formattedInitialActivities = data.map((item, index) => ({
         id: index + 1,
         time: formatTimestamp(item.timestamp),
-        type: mapServiceType(item.service_type) || item.service_type, // Sử dụng mapServiceType để ánh xạ
+        type: mapServiceType(item.service_type) || item.service_type,
         status: item.description,
       }));
-  
-      setInitialActivities(formattedInitialActivities.slice(0, 4)); // Giữ 3-4 mục đầu tiên
+
+      setInitialActivities(formattedInitialActivities.slice(0, 4));
     } catch (error) {
       console.error('Error fetching action history:', error);
       const errorMessage =
@@ -77,62 +76,63 @@ export default function ActivityHistory() {
     handleGetInitialHistory();
   }, []);
 
-  // Format dữ liệu từ activityLog (notifications và actions từ EventSource)
-  const formattedActivityLog = activityLog.map((item, index) => {
-    if (item.type === 'notification') {
-      return {
-        id: initialActivities.length + index + 1,
-        time: formatTimestamp(item.timestamp),
-        type: item.service_type || 'Notification',
-        status: item.message,
-      };
-    } else if (item.type === 'action') {
-      const actionDetails = item.details;
-      let typeDisplay = '';
-      let statusDisplay = '';
+  // Format dữ liệu từ activityLog
+  const formattedActivityLog = Array.isArray(activityLog)
+    ? activityLog.map((item, index) => {
+        if (item.type === 'notification') {
+          return {
+            id: initialActivities.length + index + 1,
+            time: formatTimestamp(item.timestamp),
+            type: mapServiceType(item.service_type) || 'Notification',
+            status: item.notification || item.message,
+          };
+        } else if (item.type === 'action') {
+          const actionDetails = item.details;
+          let typeDisplay = '';
+          let statusDisplay = '';
 
-      switch (item.actionType) {
-        case 'service_toggle':
-          typeDisplay = `Service Toggle (${actionDetails.serviceType})`;
-          statusDisplay = `Set to ${actionDetails.value} - ${
-            actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
-          }`;
-          break;
-        case 'user_update':
-          typeDisplay = 'User Profile Update';
-          statusDisplay =
-            actionDetails.status === 'success'
-              ? 'Success'
-              : `Failed (${actionDetails.error})`;
-          break;
-        case 'avatar_update':
-          typeDisplay = 'Avatar Update';
-          statusDisplay = `${actionDetails.action} - ${
-            actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
-          }`;
-          break;
-        case 'slider_update':
-          typeDisplay = `Slider Update (${actionDetails.sliderName})`;
-          statusDisplay = `Set to ${actionDetails.value} - ${
-            actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
-          }`;
-          break;
-        default:
-          typeDisplay = item.actionType;
-          statusDisplay = JSON.stringify(actionDetails);
-      }
+          switch (item.actionType) {
+            case 'service_toggle':
+              typeDisplay = `Service Toggle (${actionDetails.serviceType})`;
+              statusDisplay = `Set to ${actionDetails.value} - ${
+                actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
+              }`;
+              break;
+            case 'user_update':
+              typeDisplay = 'User Profile Update';
+              statusDisplay =
+                actionDetails.status === 'success'
+                  ? 'Success'
+                  : `Failed (${actionDetails.error})`;
+              break;
+            case 'avatar_update':
+              typeDisplay = 'Avatar Update';
+              statusDisplay = `${actionDetails.action} - ${
+                actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
+              }`;
+              break;
+            case 'slider_update':
+              typeDisplay = `Slider Update (${actionDetails.sliderName})`;
+              statusDisplay = `Set to ${actionDetails.value} - ${
+                actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
+              }`;
+              break;
+            default:
+              typeDisplay = item.actionType || 'Unknown Action';
+              statusDisplay = JSON.stringify(actionDetails);
+          }
 
-      return {
-        id: initialActivities.length + index + 1,
-        time: formatTimestamp(item.timestamp),
-        type: typeDisplay,
-        status: statusDisplay,
-      };
-    }
-    return null;
-  }).filter(item => item !== null);
+          return {
+            id: initialActivities.length + index + 1,
+            time: formatTimestamp(item.timestamp),
+            type: typeDisplay,
+            status: statusDisplay,
+          };
+        }
+        return null;
+      }).filter(item => item !== null)
+    : [];
 
-  // Gộp initialActivities và formattedActivityLog
   const allActivities = [...initialActivities, ...formattedActivityLog].slice(0, MAX_ITEMS);
 
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -213,42 +213,43 @@ export default function ActivityHistory() {
           </button>
         </div>
       ) : (
-        <></>
-      )}
-      <table className="table table-striped table-bordered table-hover table-responsive mb-0">
-        <thead>
-          <tr className={styles.tableHeader}>
-            <th width="10%">Time</th>
-            <th width="20%">Type</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {currentItems.length > 0 ? (
-            currentItems.map((activity) => (
-              <tr key={activity.id}>
-                <td>{activity.time}</td>
-                <td>{activity.type}</td>
-                <td>{activity.status}</td>
+        <>
+          <table className="table table-striped table-bordered table-hover table-responsive mb-0">
+            <thead>
+              <tr className={styles.tableHeader}>
+                <th width="10%">Time</th>
+                <th width="20%">Type</th>
+                <th>Status</th>
               </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan={3} className="text-center py-3">
-                No activity records found.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-      <div className="d-flex mt-3 justify-content-between align-items-center">
-        <div className={styles.activityFooter}>
-          {allActivities.length > 0
-            ? `Showing ${currentItems.length} in ${allActivities.length} activities`
-            : 'No activities to display'}
-        </div>
-        {allActivities.length > itemsPerPage && renderPagination()}
-      </div>
+            </thead>
+            <tbody>
+              {currentItems.length > 0 ? (
+                currentItems.map((activity) => (
+                  <tr key={activity.id}>
+                    <td>{activity.time}</td>
+                    <td>{activity.type}</td>
+                    <td>{activity.status}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={3} className="text-center py-3">
+                    No activity records found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          <div className="d-flex mt-3 justify-content-between align-items-center">
+            <div className={styles.activityFooter}>
+              {allActivities.length > 0
+                ? `Showing ${currentItems.length} in ${allActivities.length} activities`
+                : 'No activities to display'}
+            </div>
+            {allActivities.length > itemsPerPage && renderPagination()}
+          </div>
+        </>
+      )}
     </div>
   );
 }
