@@ -75,60 +75,53 @@ export default function ActivityHistory() {
     handleGetInitialHistory();
   }, []);
 
-  // Format dữ liệu từ activityLog
+  // Format activityLog entries for display
   const formattedActivityLog = Array.isArray(activityLog)
-    ? activityLog
-        .map((item, index) => {
-          if (item.type === 'notification') {
-            return {
-              id: initialActivities.length + index + 1,
-              time: formatTimestamp(item.timestamp),
-              type: mapServiceType(item.service_type) || 'Notification',
-              status: item.notification || item.message,
-            };
-          } else if (item.type === 'action') {
-            const actionDetails = item.details;
-            let typeDisplay = '';
-            let statusDisplay = '';
+    ? activityLog.map((item, index) => {
+        let typeDisplay = '';
+        let statusDisplay = '';
 
-            switch (item.actionType) {
-              case 'service_toggle':
-                typeDisplay = `Service Toggle (${actionDetails.serviceType})`;
-                statusDisplay = `Set to ${actionDetails.value} - ${
-                  actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
-                }`;
-                break;
-              case 'user_update':
-                typeDisplay = 'User Profile Update';
-                statusDisplay = actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`;
-                break;
-              case 'avatar_update':
-                typeDisplay = 'Avatar Update';
-                statusDisplay = `${actionDetails.action} - ${
-                  actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
-                }`;
-                break;
-              case 'slider_update':
-                typeDisplay = `Slider Update (${actionDetails.sliderName})`;
-                statusDisplay = `Set to ${actionDetails.value} - ${
-                  actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
-                }`;
-                break;
-              default:
-                typeDisplay = item.actionType || 'Unknown Action';
-                statusDisplay = JSON.stringify(actionDetails);
-            }
-
-            return {
-              id: initialActivities.length + index + 1,
-              time: formatTimestamp(item.timestamp),
-              type: typeDisplay,
-              status: statusDisplay,
-            };
+        if (item.type === 'notification') {
+          typeDisplay = mapServiceType(item.service_type) || 'Notification';
+          statusDisplay = item.notification || item.message;
+        } else if (item.type === 'action') {
+          const actionDetails = item.details;
+          switch (item.actionType) {
+            case 'service_toggle':
+              typeDisplay = `Service Toggle (${actionDetails.serviceType})`;
+              statusDisplay = `Set to ${actionDetails.value} - ${
+                actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
+              }`;
+              break;
+            case 'user_update':
+              typeDisplay = 'User Profile Update';
+              statusDisplay = actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`;
+              break;
+            case 'avatar_update':
+              typeDisplay = 'Avatar Update';
+              statusDisplay = `${actionDetails.action} - ${
+                actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
+              }`;
+              break;
+            case 'slider_update':
+              typeDisplay = `Slider Update (${actionDetails.sliderName})`;
+              statusDisplay = `Set to ${actionDetails.value} - ${
+                actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
+              }`;
+              break;
+            default:
+              typeDisplay = item.actionType || 'Unknown Action';
+              statusDisplay = JSON.stringify(actionDetails);
           }
-          return null;
-        })
-        .filter((item) => item !== null)
+        }
+
+        return {
+          id: initialActivities.length + index + 1,
+          time: formatTimestamp(item.timestamp),
+          type: typeDisplay,
+          status: statusDisplay,
+        };
+      })
     : [];
 
   const allActivities = [...initialActivities, ...formattedActivityLog].slice(0, MAX_ITEMS);

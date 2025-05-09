@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { IOTServices } from '../utils/IOTServices.jsx';
-import axios from 'axios';
 
 export const UserContext = createContext();
 
@@ -16,7 +15,6 @@ export const UserProvider = ({ children }) => {
     lightLevel: 0,
     distance: 0,
   });
-  const [notifications, setNotifications] = useState([]);
   const [sessionId, setSessionId] = useState(null);
 
   const [actionHistory, setActionHistory] = useState({
@@ -25,7 +23,6 @@ export const UserProvider = ({ children }) => {
     avatar_update: [],
   });
 
-  // Tạo activityLog từ notifications và actionHistory
   const [activityLog, setActivityLog] = useState([]);
 
   const addActionToHistory = (type, action) => {
@@ -36,26 +33,11 @@ export const UserProvider = ({ children }) => {
       const newActions = [newAction, ...currentActions].slice(0, 10);
       newHistory[type] = newActions;
 
-      // Cập nhật activityLog khi thêm action
       setActivityLog((prevLog) =>
-        [{ type: 'action', actionType: type, details: newAction, timestamp: newAction.timestamp }, ...prevLog].slice(
-          0,
-          40,
-        ),
-      ); // Giới hạn tối đa 40 mục
+        [{ type: 'action', actionType: type, details: newAction, timestamp: newAction.timestamp }, ...prevLog].slice(0, 40)
+      );
 
       return newHistory;
-    });
-  };
-
-  const addNotification = (notification) => {
-    setNotifications((prev) => {
-      const newNotifications = [...prev, notification];
-      // Cập nhật activityLog khi có thông báo mới
-      setActivityLog((prevLog) =>
-        [{ type: 'notification', ...notification, timestamp: new Date().toISOString() }, ...prevLog].slice(0, 40),
-      ); // Giới hạn tối đa 40 mục
-      return newNotifications;
     });
   };
 
@@ -64,14 +46,18 @@ export const UserProvider = ({ children }) => {
       if (user) return;
 
       try {
-        const response = await axios.get(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/`, {
-          withCredentials: true,
+        const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/`, {
+          method: 'GET',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
         });
 
-        if (response.status === 200) {
-          console.log('Dữ liệu người dùng fetch thành công:', response.data);
-          setUser(response.data);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Dữ liệu người dùng fetch thành công:', data);
+          setUser(data);
+        } else {
+          throw new Error('Failed to fetch user data');
         }
       } catch (error) {
         console.error('Lỗi khi fetch dữ liệu người dùng:', error);
@@ -84,15 +70,19 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     const fetchServicesConfig = async () => {
       try {
-        const response = await axios.get(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/app/config`, {
-          withCredentials: true,
+        const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/app/services_status`, {
+          method: 'GET',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
         });
 
-        if (response.status === 200) {
-          console.log('Cấu hình dịch vụ fetch thành công:', response.data);
-          setServicesState(response.data);
-          localStorage.setItem('servicesState', JSON.stringify(response.data));
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Cấu hình dịch vụ fetch thành công:', data);
+          setServicesState(data);
+          localStorage.setItem('servicesState', JSON.stringify(data));
+        } else {
+          throw new Error('Failed to fetch services config');
         }
       } catch (error) {
         console.error('Lỗi khi fetch cấu hình dịch vụ:', error);
@@ -114,7 +104,10 @@ export const UserProvider = ({ children }) => {
     source.onmessage = (event) => {
       const notification = JSON.parse(event.data);
       console.log('Received SSE notification:', notification);
-      addNotification(notification);
+      const timestamp = new Date().toISOString();
+      setActivityLog((prevLog) =>
+        [{ type: 'notification', ...notification, timestamp }, ...prevLog].slice(0, 40)
+      );
     };
 
     source.onerror = (error) => {
@@ -137,11 +130,9 @@ export const UserProvider = ({ children }) => {
         setServicesState,
         sensorData,
         setSensorData,
-        notifications,
-        addNotification,
         actionHistory,
         addActionToHistory,
-        activityLog, // Thêm activityLog vào context
+        activityLog,
       }}
     >
       {children}
