@@ -24,14 +24,15 @@ function LoginForm({ showSignUp }) {
     }
 
     fetch(`${import.meta.env.VITE_SERVER_URL}/auth/login`, {
-      method: 'PATCH',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify({
         username: username,
         password: password
-      })  // equivalent to withCredentials: true in axios
+      })
     })
     .then(response => {
       if (!response.ok) {
