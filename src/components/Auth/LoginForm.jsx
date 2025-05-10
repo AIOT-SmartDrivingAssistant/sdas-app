@@ -5,6 +5,7 @@ import { UserContext } from '../../hooks/UserContext.jsx';
 
 function LoginForm({ showSignUp }) {
   const navigate = useNavigate();
+
   const { setSessionId } = useContext(UserContext);
 
   const handleLogin = (e) => {
@@ -18,13 +19,8 @@ function LoginForm({ showSignUp }) {
       alert('Please enter username and password');
     }
 
-    const request = {
-      username: username,
-      password: password
-    }
-
     fetch(`${import.meta.env.VITE_SERVER_URL}/auth/login`, {
-      method: 'PATCH',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },

@@ -10,7 +10,7 @@ const SideBar = () => {
     e.preventDefault();
 
     fetch(`${import.meta.env.VITE_SERVER_URL}/auth/logout`, {
-      method: 'PATCH',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include'
     })
