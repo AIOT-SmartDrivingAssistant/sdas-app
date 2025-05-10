@@ -4,31 +4,39 @@ import clsx from 'clsx';
 import Robot from '../../../assets/robot.svg';
 import toast from 'react-hot-toast';
 
+import { useUserContext } from '../../../hooks/UserContext.jsx';
+
 const SideBar = () => {
   const navigate = useNavigate();
+
+  const { eventSource, setEventSource } = useUserContext()
 
   const handleLogout = async (e) => {
     e.preventDefault();
 
-    fetch(`${import.meta.env.VITE_SERVER_URL}/auth/logout`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((data) => {
-        console.log('Logout successful:', data);
-        navigate('/');
-      })
-      .catch((error) => {
-        console.error('Logout error:', error);
-        toast.error('An error occurred during logout');
+    try {
+      const logoutResponse = await fetch(`${import.meta.env.VITE_SERVER_URL}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
       });
+
+      const logoutResponseData = await logoutResponse.json();
+      console.log(`Logout response:`, logoutResponseData);
+
+      if (!logoutResponse.ok) {
+        throw new Error(`Internal server error`);
+      }
+
+      eventSource.close();
+      setEventSource(null);
+      toast.success(`Logout successful!`);
+      navigate('/');
+    }
+    catch (error) {
+      console.log(`Logout error:`, error);
+      toast.error(error.message);
+    }
   };
 
   return (

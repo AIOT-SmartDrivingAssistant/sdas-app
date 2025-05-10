@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from '../components/Home/Profile.module.css';
 import defaultAvatar from '../assets/images/avt.jpg';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { UserContext } from '../hooks/UserContext.jsx';
+import { useUserContext } from '../hooks/UserContext.jsx';
 import toast from 'react-hot-toast';
 
 function Profile() {
-  const { user, setUser, addActionToHistory } = useContext(UserContext);
+  const { user, setUser, addActionToHistory } = useUserContext();
 
   const [formData, setFormData] = useState({
     username: '',

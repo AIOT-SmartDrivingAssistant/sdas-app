@@ -1,16 +1,16 @@
-import { useNavigate } from 'react-router-dom';
-import { useContext } from 'react';
-
-import { UserContext } from '../../hooks/UserContext.jsx';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import toast from 'react-hot-toast';
+
+import { useUserContext } from '../../hooks/UserContext.jsx';
 
 function LoginForm({ showSignUp }) {
   const navigate = useNavigate();
-  const { setSessionId } = useContext(UserContext);
+  const { setEventSource, setSSENotification } = useUserContext();
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
 
     const username = document.getElementById('username_log').value;
@@ -22,32 +22,84 @@ function LoginForm({ showSignUp }) {
     }
 
     setLoading(true);
+    try {
+      const loginResponse = await fetch(`${import.meta.env.VITE_SERVER_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ username, password }),
+      });
 
-    fetch(`${import.meta.env.VITE_SERVER_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({ username, password }),
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+      const loginResponseData = await loginResponse.json();
+      console.log('Login response:', loginResponseData);
+
+      if (!loginResponse.ok) {
+        if (loginResponse.status == 422) {
+          const errorEntity = loginResponseData.detail[0].loc[1];
+          const errorMessage = loginResponseData.detail[0].msg;
+          throw new Error(`${errorEntity}: ${errorMessage}`);
         }
-        return response.json();
-      })
-      .then((data) => {
-        console.log('Login successful:', data);
-        setSessionId(data.setSessionId);
-        toast.success('Login successful!');
-        navigate('/home');
-      })
-      .catch((error) => {
-        console.error('Login error:', error);
-        toast.error('An error occurred during login');
-      })
-      .finally(() => setLoading(false));
+        else if (loginResponse.status == 401) {
+          const errorMessage = loginResponseData.message;
+          throw new Error(errorMessage);
+        }
+        else {
+          throw new Error(`Internal server error`);
+        }
+      }
+
+      const source = new EventSource(`${import.meta.env.VITE_SERVER_URL}/app/events`, {
+        withCredentials: true,
+      });
+      source.onmessage = (event) => {
+        const notification = JSON.parse(event.data);
+        console.log('Received SSE notification:', notification);
+        setSSENotification((prev) => [...prev, notification]);
+      }
+      source.onerror = (error) => {
+        console.log('SSE error:', error);
+        setEventSource(null);
+        source.close();
+      }
+      setEventSource(source);
+      
+      toast.success('Login successful!');
+      navigate('/home');
+    }
+    catch (error) {
+      console.error('Login error:', error);
+      toast.error(error.message);
+    }
+    finally {
+      setLoading(false);
+    }
+
+    // fetch(`${import.meta.env.VITE_SERVER_URL}/auth/login`, {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //   },
+    //   credentials: 'include',
+    //   body: JSON.stringify({ username, password }),
+    // })
+    //   .then((response) => {
+    //     if (!response.ok) {
+    //       throw new Error(`HTTP error! status: ${response.status}`);
+    //     }
+    //     return response.json();
+    //   })
+    //   .then((data) => {
+    //     console.log('Login successful:', data);
+    //     toast.success('Login successful!');
+    //     navigate('/home');
+    //   })
+    //   .catch((error) => {
+    //     console.error('Login error:', error);
+    //     toast.error('An error occurred during login');
+    //   })
+    //   .finally(() => setLoading(false));
   };
 
   return (

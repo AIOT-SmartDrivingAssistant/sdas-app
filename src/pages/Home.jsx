@@ -1,15 +1,22 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from '../components/Home/Home.module.css';
 import debounce from 'lodash.debounce';
-import { UserContext } from '../hooks/UserContext.jsx';
+import { useUserContext } from '../hooks/UserContext.jsx';
 import 'react-range-slider-input/dist/style.css';
-import { SensorTypes, IOTServices } from '../utils/IOTServices.jsx';
+import { SensorTypes, IOTServices } from '../utils/CommonFields.jsx';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 
 const Home = () => {
-  const { servicesState, setServicesState, sensorData, setSensorData, addActionToHistory, user, activityLog } =
-    useContext(UserContext);
+  const { 
+    user, 
+    servicesState, 
+    setServicesState, 
+    sensorData, 
+    setSensorData, 
+    addActionToHistory, 
+    activityLog 
+  } = useUserContext();
 
   const [data, setData] = useState({
     distance: 0,

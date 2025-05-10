@@ -1,10 +1,10 @@
-import React, { useContext, useState } from 'react';
+import React, { useState } from 'react';
 import styles from '../components/Home/Services.module.css';
-import { UserContext } from '../hooks/UserContext.jsx';
-import { IOTServices } from '../utils/IOTServices.jsx';
+import { useUserContext } from '../hooks/UserContext.jsx';
+import { IOTServices } from '../utils/CommonFields.jsx';
 
 function Services() {
-  const { servicesState, setServicesState, addActionToHistory } = useContext(UserContext);
+  const { servicesState, setServicesState, addActionToHistory } = useUserContext();
   const [isLoading, setIsLoading] = useState({
     air_cond_service: false,
     drowsiness_service: false,

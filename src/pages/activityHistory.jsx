@@ -1,9 +1,9 @@
 import styles from '../components/Home/activityHistory.module.css';
-import React, { useState, useEffect, useContext } from 'react';
-import { UserContext } from '../hooks/UserContext.jsx';
+import React, { useState, useEffect } from 'react';
+import { useUserContext } from '../hooks/UserContext.jsx';
 
 export default function ActivityHistory() {
-  const { activityLog } = useContext(UserContext);
+  const { activityLog } = useUserContext();
   const [initialActivities, setInitialActivities] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);

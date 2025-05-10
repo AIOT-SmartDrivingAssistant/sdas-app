@@ -1,21 +1,26 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import { IOTServices } from '../utils/IOTServices.jsx';
+import { createContext, useContext, useState } from 'react';
+import { IOTServices } from '../utils/CommonFields.jsx';
 
-export const UserContext = createContext();
+const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+
+  const [eventSource, setEventSource] = useState(null);
+
   const [servicesState, setServicesState] = useState(() => {
     const savedState = localStorage.getItem('servicesState');
     return savedState ? JSON.parse(savedState) : Object.fromEntries(Object.keys(IOTServices).map((key) => [key, true]));
   });
+
   const [sensorData, setSensorData] = useState({
     temperature: 0,
     humidity: 0,
     lightLevel: 0,
     distance: 0,
   });
-  const [sessionId, setSessionId] = useState(null);
+
+  const [SSENotification, setSSENotification] = useState([]);
 
   const [actionHistory, setActionHistory] = useState({
     service_toggle: [],
@@ -41,103 +46,53 @@ export const UserProvider = ({ children }) => {
     });
   };
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (user) return;
+  // useEffect(() => {
+  //   const source = new EventSource(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/app/events`, {
+  //     withCredentials: true,
+  //   });
 
-      try {
-        const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-        });
+  //   source.onmessage = (event) => {
+  //     const notification = JSON.parse(event.data);
+  //     console.log('Received SSE notification:', notification);
+  //     const timestamp = new Date().toISOString();
+  //     setActivityLog((prevLog) =>
+  //       [{ type: 'notification', ...notification, timestamp }, ...prevLog].slice(0, 40)
+  //     );
+  //   };
 
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Dữ liệu người dùng fetch thành công:', data);
-          setUser(data);
-        } else {
-          throw new Error('Failed to fetch user data');
-        }
-      } catch (error) {
-        console.error('Lỗi khi fetch dữ liệu người dùng:', error);
-      }
-    };
+  //   source.onerror = (error) => {
+  //     console.error('SSE error:', error);
+  //   };
 
-    fetchUserData();
-  }, [user]);
+  //   return () => {
+  //     source.close();
+  //   };
+  // }, []);
 
-  useEffect(() => {
-    const fetchServicesConfig = async () => {
-      try {
-        const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/app/services_status`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-        });
+  const value = {
+    user,
+    setUser,
+    eventSource,
+    setEventSource,
+    servicesState,
+    SSENotification,
+    setSSENotification,
+    setServicesState,
+    sensorData,
+    setSensorData,
+    actionHistory,
+    addActionToHistory,
+    activityLog,
+  };
 
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Cấu hình dịch vụ fetch thành công:', data);
-          setServicesState(data);
-          localStorage.setItem('servicesState', JSON.stringify(data));
-        } else {
-          throw new Error('Failed to fetch services config');
-        }
-      } catch (error) {
-        console.error('Lỗi khi fetch cấu hình dịch vụ:', error);
-      }
-    };
-
-    fetchServicesConfig();
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('servicesState', JSON.stringify(servicesState));
-  }, [servicesState]);
-
-  useEffect(() => {
-    const source = new EventSource(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/app/events`, {
-      withCredentials: true,
-    });
-
-    source.onmessage = (event) => {
-      const notification = JSON.parse(event.data);
-      console.log('Received SSE notification:', notification);
-      const timestamp = new Date().toISOString();
-      setActivityLog((prevLog) =>
-        [{ type: 'notification', ...notification, timestamp }, ...prevLog].slice(0, 40)
-      );
-    };
-
-    source.onerror = (error) => {
-      console.error('SSE error:', error);
-    };
-
-    return () => {
-      source.close();
-    };
-  }, []);
-
-  return (
-    <UserContext.Provider
-      value={{
-        user,
-        setUser,
-        sessionId,
-        setSessionId,
-        servicesState,
-        setServicesState,
-        sensorData,
-        setSensorData,
-        actionHistory,
-        addActionToHistory,
-        activityLog,
-      }}
-    >
-      {children}
-    </UserContext.Provider>
-  );
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 };
 
-export const useUserContext = () => useContext(UserContext);
+// eslint-disable-next-line react-refresh/only-export-components
+export const useUserContext = () => {
+  const context = useContext(UserContext);
+  if (!context) {
+    throw new Error('useUser must be used within a UserProvider');
+  }
+  return context;
+}
