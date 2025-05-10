@@ -2,32 +2,41 @@ import styles from './Sidebar.module.css';
 import { NavLink, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import Robot from '../../../assets/robot.svg';
+import toast from 'react-hot-toast';
+
+import { useUserContext } from '../../../hooks/UserContext.jsx';
 
 const SideBar = () => {
   const navigate = useNavigate();
 
+  const { eventSource, setEventSource } = useUserContext()
+
   const handleLogout = async (e) => {
     e.preventDefault();
 
-    fetch(`${import.meta.env.VITE_SERVER_URL}/auth/logout`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include'
-    })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+      const logoutResponse = await fetch(`${import.meta.env.VITE_SERVER_URL}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      const logoutResponseData = await logoutResponse.json();
+      console.log(`Logout response:`, logoutResponseData);
+
+      if (!logoutResponse.ok) {
+        throw new Error(`Internal server error`);
       }
-      return response.json();
-    })
-    .then(data => {
-      console.log('Logout successful:', data);
+
+      eventSource.close();
+      setEventSource(null);
+      toast.success(`Logout successful!`);
       navigate('/');
-    })
-    .catch(error => {
-      console.error('Logout error:', error);
-      alert('An error occurred during logout');
-    });
+    }
+    catch (error) {
+      console.log(`Logout error:`, error);
+      toast.error(error.message);
+    }
   };
 
   return (
@@ -64,7 +73,7 @@ const SideBar = () => {
         <li>
           <NavLink to="/profile" className={({ isActive }) => clsx(styles.sidebarLink, isActive ? styles.active : '')}>
             <div className={styles.icon}>
-              <i class="fa-solid fa-user"></i>
+              <i className="fa-solid fa-user"></i>
             </div>
             Profile
           </NavLink>
