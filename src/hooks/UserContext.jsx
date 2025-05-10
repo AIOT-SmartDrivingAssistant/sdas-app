@@ -31,16 +31,28 @@ export const UserProvider = ({ children }) => {
   const [activityLog, setActivityLog] = useState([]);
 
   const addActionToHistory = (type, action) => {
+    // Tạo một ID duy nhất cho mỗi hành động
+    const actionId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+    const newAction = { id: actionId, timestamp: new Date().toISOString(), ...action };
+
     setActionHistory((prev) => {
       const newHistory = { ...prev };
       const currentActions = newHistory[type] || [];
-      const newAction = { timestamp: new Date().toISOString(), ...action };
       const newActions = [newAction, ...currentActions].slice(0, 10);
       newHistory[type] = newActions;
 
-      setActivityLog((prevLog) =>
-        [{ type: 'action', actionType: type, details: newAction, timestamp: newAction.timestamp }, ...prevLog].slice(0, 40)
-      );
+      // Thêm vào activityLog với ID duy nhất
+      setActivityLog((prevLog) => {
+        const existingIds = new Set(prevLog.map((item) => item.id));
+        // Chỉ thêm nếu ID chưa tồn tại
+        if (!existingIds.has(actionId)) {
+          return [
+            { id: actionId, type: 'action', actionType: type, details: newAction, timestamp: newAction.timestamp },
+            ...prevLog,
+          ].slice(0, 40);
+        }
+        return prevLog;
+      });
 
       return newHistory;
     });
