@@ -80,8 +80,7 @@ export const UserProvider = ({ children }) => {
     setServicesState,
     sensorData,
     setSensorData,
-    // addActionToHistory,
-    // activityLog,
+    clearUserContext,
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
