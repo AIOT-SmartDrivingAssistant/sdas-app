@@ -3,8 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { useUserContext } from '../hooks/UserContext.jsx';
 
 export default function ActivityHistory() {
-  const { activityLog } = useUserContext();
+  // const { activityLog } = useUserContext();
+  const { actionHistory, addActionHistory } = useUserContext();
   const [initialActivities, setInitialActivities] = useState([]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -34,32 +36,40 @@ export default function ActivityHistory() {
     return typeMap[type] || type;
   };
 
+  console.log("actionHistory: ", actionHistory);
+  console.log("initialActivities: ", initialActivities);
+
   const handleGetInitialHistory = async () => {
     setLoading(true);
     setError(null);
+    
     try {
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/app/action_history`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      if (!actionHistory || actionHistory.length < 4) {
+        const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/app/action_history`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        });
+  
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        }
+  
+        const data = await response.json();
+        console.log('Action history fetched successfully: ', data);
+  
+        await addActionHistory(data);
       }
 
-      const data = await response.json();
-      console.log('Action history fetched successfully: ', data);
-
-      const formattedInitialActivities = data.map((item, index) => ({
+      const formattedInitialActivities = actionHistory.map((item, index) => ({
         id: index + 1,
         time: formatTimestamp(item.timestamp),
         type: mapServiceType(item.service_type) || item.service_type,
         status: item.description,
       }));
 
-      setInitialActivities(formattedInitialActivities.slice(0, 4));
+      setInitialActivities(formattedInitialActivities);
     } catch (error) {
       console.error('Error fetching action history:', error);
       const errorMessage = error.message.includes('401')
@@ -73,67 +83,68 @@ export default function ActivityHistory() {
 
   useEffect(() => {
     handleGetInitialHistory();
-  }, []);
+  }, [actionHistory]);
 
   // Format activityLog entries for display
-  const formattedActivityLog = Array.isArray(activityLog)
-    ? activityLog.reduce((acc, item, index) => {
-        // Chỉ hiển thị một lần cho mỗi hành động dựa trên ID hoặc timestamp + type
-        const uniqueKey = item.id || item.timestamp + item.type + (item.details?.serviceType || '');
-        if (acc.some((existing) => existing.uniqueKey === uniqueKey)) {
-          return acc;
-        }
+  // const formattedActivityLog = Array.isArray(activityLog)
+  //   ? activityLog.reduce((acc, item, index) => {
+  //       // Chỉ hiển thị một lần cho mỗi hành động dựa trên ID hoặc timestamp + type
+  //       const uniqueKey = item.id || item.timestamp + item.type + (item.details?.serviceType || '');
+  //       if (acc.some((existing) => existing.uniqueKey === uniqueKey)) {
+  //         return acc;
+  //       }
 
-        let typeDisplay = '';
-        let statusDisplay = '';
+  //       let typeDisplay = '';
+  //       let statusDisplay = '';
 
-        if (item.type === 'notification') {
-          typeDisplay = mapServiceType(item.service_type) || 'Notification';
-          statusDisplay = item.notification || item.message;
-        } else if (item.type === 'action') {
-          const actionDetails = item.details;
-          switch (item.actionType) {
-            case 'service_toggle':
-              typeDisplay = `Service Toggle (${actionDetails.serviceType})`;
-              statusDisplay = `Set to ${actionDetails.value} - ${
-                actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
-              }`;
-              break;
-            case 'user_update':
-              typeDisplay = 'User Profile Update';
-              statusDisplay = actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`;
-              break;
-            case 'avatar_update':
-              typeDisplay = 'Avatar Update';
-              statusDisplay = `${actionDetails.action} - ${
-                actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
-              }`;
-              break;
-            case 'slider_update':
-              typeDisplay = `Slider Update (${actionDetails.sliderName})`;
-              statusDisplay = `Set to ${actionDetails.value} - ${
-                actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
-              }`;
-              break;
-            default:
-              typeDisplay = item.actionType || 'Unknown Action';
-              statusDisplay = JSON.stringify(actionDetails);
-          }
-        }
+  //       if (item.type === 'notification') {
+  //         typeDisplay = mapServiceType(item.service_type) || 'Notification';
+  //         statusDisplay = item.notification || item.message;
+  //       } else if (item.type === 'action') {
+  //         const actionDetails = item.details;
+  //         switch (item.actionType) {
+  //           case 'service_toggle':
+  //             typeDisplay = `Service Toggle (${actionDetails.serviceType})`;
+  //             statusDisplay = `Set to ${actionDetails.value} - ${
+  //               actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
+  //             }`;
+  //             break;
+  //           case 'user_update':
+  //             typeDisplay = 'User Profile Update';
+  //             statusDisplay = actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`;
+  //             break;
+  //           case 'avatar_update':
+  //             typeDisplay = 'Avatar Update';
+  //             statusDisplay = `${actionDetails.action} - ${
+  //               actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
+  //             }`;
+  //             break;
+  //           case 'slider_update':
+  //             typeDisplay = `Slider Update (${actionDetails.sliderName})`;
+  //             statusDisplay = `Set to ${actionDetails.value} - ${
+  //               actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
+  //             }`;
+  //             break;
+  //           default:
+  //             typeDisplay = item.actionType || 'Unknown Action';
+  //             statusDisplay = JSON.stringify(actionDetails);
+  //         }
+  //       }
 
-        acc.push({
-          id: initialActivities.length + acc.length + 1,
-          time: formatTimestamp(item.timestamp),
-          type: typeDisplay,
-          status: statusDisplay,
-          uniqueKey,
-        });
+  //       acc.push({
+  //         id: initialActivities.length + acc.length + 1,
+  //         time: formatTimestamp(item.timestamp),
+  //         type: typeDisplay,
+  //         status: statusDisplay,
+  //         uniqueKey,
+  //       });
 
-        return acc;
-      }, [])
-    : [];
+  //       return acc;
+  //     }, [])
+  //   : [];
 
-  const allActivities = [...initialActivities, ...formattedActivityLog]
+  // const allActivities = [...initialActivities, ...formattedActivityLog]
+  const allActivities = initialActivities
     .filter((item, index, self) => {
       // Loại bỏ các hoạt động trùng lặp dựa trên time + type + status
       const key = `${item.time}-${item.type}-${item.status}`;

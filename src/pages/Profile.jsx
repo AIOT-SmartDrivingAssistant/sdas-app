@@ -6,7 +6,7 @@ import { useUserContext } from '../hooks/UserContext.jsx';
 import toast from 'react-hot-toast';
 
 function Profile() {
-  const { user, setUser, addActionToHistory } = useUserContext();
+  const { userData, setUserData, userAvatar, setUserAvatar, addActionToHistory } = useUserContext();
 
   const [formData, setFormData] = useState({
     username: '',
@@ -33,10 +33,10 @@ function Profile() {
   useEffect(() => {
     const fetchUserData = async () => {
       // Kiểm tra nếu user đã có trong UserContext
-      if (user) {
+      if (userData) {
         const formattedUser = {
-          ...user,
-          date_of_birth: formatDateForInput(user.date_of_birth),
+          ...userData,
+          date_of_birth: formatDateForInput(userData.date_of_birth),
         };
         setFormData(formattedUser);
         setLoading(false);
@@ -63,7 +63,7 @@ function Profile() {
         data.date_of_birth = formatDateForInput(data.date_of_birth);
         console.log('Dữ liệu tải về:', data);
 
-        setUser(data);
+        setUserData(data);
         setFormData(data);
       } catch (error) {
         console.error('Lỗi khi tải dữ liệu:', error);
@@ -77,7 +77,7 @@ function Profile() {
     };
 
     fetchUserData();
-  }, [user, setUser]);
+  }, [userData, setUserData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -119,13 +119,9 @@ function Profile() {
 
       const data = await response.json();
       console.log('Response:', data);
-      setUser(data);
+      setUserAvatar(data);
 
       toast.success('Profile updated successfully!');
-      addActionToHistory('user_update', {
-        updatedFields: Object.keys(formData),
-        status: 'success',
-      });
     } catch (error) {
       console.error('Error updating user data:', error);
       const errorMessage = error.message.includes('401')
@@ -134,11 +130,6 @@ function Profile() {
         ? 'Validation error: Please check your input data.'
         : 'Failed to update profile. Please try again later.';
       toast.error(errorMessage);
-      addActionToHistory('user_update', {
-        updatedFields: Object.keys(formData),
-        status: 'failed',
-        error: errorMessage,
-      });
     }
   };
 
@@ -160,10 +151,6 @@ function Profile() {
 
       const data = await response.json();
       console.log('Avatar updated successfully:', data);
-      addActionToHistory('avatar_update', {
-        action: 'upload',
-        status: 'success',
-      });
     } catch (error) {
       console.error('Error updating avatar:', error);
       const errorMessage = error.message.includes('401')
@@ -190,7 +177,7 @@ function Profile() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        toast.error(errorMessage);
+        toast.error(errorData);
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
@@ -198,21 +185,12 @@ function Profile() {
       console.log('Avatar deleted successfully:', data);
       toast.success('Avatar deleted successfully!');
       setAvatar(defaultAvatar);
-      addActionToHistory('avatar_update', {
-        action: 'delete',
-        status: 'success',
-      });
     } catch (error) {
       console.error('Error deleting avatar:', error);
       const errorMessage = error.message.includes('401')
         ? 'Unauthorized access. Please log in again.'
         : 'Failed to delete avatar. Please try again later.';
       toast.error(errorMessage);
-      addActionToHistory('avatar_update', {
-        action: 'delete',
-        status: 'failed',
-        error: errorMessage,
-      });
     }
   };
 

@@ -7,7 +7,7 @@ import { useUserContext } from '../../hooks/UserContext.jsx';
 
 function LoginForm({ showSignUp }) {
   const navigate = useNavigate();
-  const { setEventSource, setSSENotification } = useUserContext();
+  const { setEventSource, setSSENotification, newNotificationArrived } = useUserContext();
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e) => {
@@ -56,7 +56,9 @@ function LoginForm({ showSignUp }) {
       source.onmessage = (event) => {
         const notification = JSON.parse(event.data);
         console.log('Received SSE notification:', notification);
+
         setSSENotification((prev) => [...prev, notification]);
+        newNotificationArrived(notification);
       }
       source.onerror = (error) => {
         console.log('SSE error:', error);
@@ -75,31 +77,6 @@ function LoginForm({ showSignUp }) {
     finally {
       setLoading(false);
     }
-
-    // fetch(`${import.meta.env.VITE_SERVER_URL}/auth/login`, {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //   },
-    //   credentials: 'include',
-    //   body: JSON.stringify({ username, password }),
-    // })
-    //   .then((response) => {
-    //     if (!response.ok) {
-    //       throw new Error(`HTTP error! status: ${response.status}`);
-    //     }
-    //     return response.json();
-    //   })
-    //   .then((data) => {
-    //     console.log('Login successful:', data);
-    //     toast.success('Login successful!');
-    //     navigate('/home');
-    //   })
-    //   .catch((error) => {
-    //     console.error('Login error:', error);
-    //     toast.error('An error occurred during login');
-    //   })
-    //   .finally(() => setLoading(false));
   };
 
   return (

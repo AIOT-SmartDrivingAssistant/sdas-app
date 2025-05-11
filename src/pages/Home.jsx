@@ -1,21 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import styles from '../components/Home/Home.module.css';
-import debounce from 'lodash.debounce';
-import { useUserContext } from '../hooks/UserContext.jsx';
 import 'react-range-slider-input/dist/style.css';
-import { SensorTypes, IOTServices } from '../utils/CommonFields.jsx';
-import Modal from 'react-bootstrap/Modal';
-import Button from 'react-bootstrap/Button';
+import styles from '../components/Home/Home.module.css';
+
+import React, { useState, useEffect } from 'react';
+
+import { useUserContext } from '../hooks/UserContext.jsx';
+import { SensorTypes } from '../utils/CommonFields.jsx';
 
 const Home = () => {
-  const { 
-    user, 
-    servicesState, 
-    setServicesState, 
+  const {
+    setUserData,
+    setUserAvatar,
+    servicesState,
+    setServicesStatus,
     sensorData, 
     setSensorData, 
-    addActionToHistory, 
-    activityLog 
+    addActionToHistory,
   } = useUserContext();
 
   const [data, setData] = useState({
@@ -49,16 +48,99 @@ const Home = () => {
   });
 
   const [isInitialized, setIsInitialized] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [currentNotification, setCurrentNotification] = useState(null);
 
-  useEffect(() => {
-    const latestEntry = activityLog[0];
-    if (latestEntry && latestEntry.type === 'notification') {
-      setCurrentNotification(latestEntry);
-      setShowModal(true);
+  const handleGetUserData = async () => {
+    try {
+      const [getUserDataResponse, getUserAvatarResponse] = await Promise.all([
+        fetch(`${import.meta.env.VITE_SERVER_URL}/user/`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        }),
+        fetch(`${import.meta.env.VITE_SERVER_URL}/user/avatar`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        })
+      ]);
+
+      let _userData = null;
+      let _userAvatar = null;
+      let userDataError = null;
+      let userAvatarError = null;
+
+      // Handle user data response
+      try {
+        _userData = await getUserDataResponse.json();
+        if (!getUserDataResponse.ok) {
+          userDataError = _userData.message || `Fail to fetch user's data`;
+          _userData = null;
+        }
+      } catch (e) {
+        console.error(e);
+        userDataError = `Fail to parse user data`;
+        _userData = null;
+      }
+
+      // Handle user avatar response
+      if (getUserAvatarResponse.ok) {
+        try {
+          _userAvatar = await getUserAvatarResponse.blob();
+        } catch (e) {
+          console.error(e);
+          userAvatarError = `Fail to parse user avatar`;
+          _userAvatar = null;
+        }
+      } else {
+        try {
+          const avatarErrorData = await getUserAvatarResponse.json();
+          userAvatarError = avatarErrorData.message || `Fail to fetch user's avatar`;
+        } catch (e) {
+          console.error(e);
+          userAvatarError = `Fail to fetch user's avatar`;
+        }
+        _userAvatar = null;
+      }
+
+      userDataError? console.error(userDataError) : console.log(`User's data: `, _userData);
+      userAvatarError? console.error(userAvatarError) : console.log(`User's avatar: `, _userAvatar);
+
+      setUserData(_userData);
+      setUserAvatar(_userAvatar);
+
+      if (userDataError || userAvatarError) {
+        throw new Error([userDataError, userAvatarError].filter(Boolean).join(' | '));
+      }
     }
-  }, [activityLog]);
+    catch (error) {
+      console.error(`Error at handleGetUserData: `, error);
+    }
+  };
+
+  const handleGetServicesStatus = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SERVER_URL}/app/services_status`,
+        {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        },
+      );
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        console.error(responseData);
+        throw new Error(responseData.message);
+      }
+
+      setServicesStatus(responseData);
+    }
+    catch (error) {
+      console.error(error);
+    }
+  }
 
   const handleGetSensorData = async () => {
     setErrors((prev) => ({
@@ -185,10 +267,13 @@ const Home = () => {
     const runInitialize = async () => {
       try {
         setIsInitialized(true);
+        await handleGetServicesStatus();
         const sensorSuccess = await handleGetSensorData();
         if (!sensorSuccess) {
           setErrors((prev) => ({ ...prev, general: 'Failed to fetch sensor data.' }));
         }
+
+        handleGetUserData();
       } catch (error) {
         console.error('Error in initialize:', error);
         setErrors((prev) => ({ ...prev, general: 'Failed to initialize application: ' + error.message }));
@@ -203,49 +288,6 @@ const Home = () => {
     if (distance < 100) return { class: 'bg-warning', message: 'Warning' };
     return { class: 'bg-success', message: 'Safe' };
   };
-
-  const [sliderValues, setSliderValues] = useState({
-    airConditioner: [0, 0],
-    headLight: [0, 0],
-  });
-
-  const handleSliderChange = debounce(async (value, sliderName) => {
-    setSliderValues((prevValues) => ({
-      ...prevValues,
-      [sliderName]: value,
-    }));
-
-    try {
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/iot/service`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          service_type: sliderName,
-          value: value[1].toString(),
-        }),
-      });
-
-      if (response.ok) {
-        console.log(`Slider ${sliderName} API Response:`, await response.json());
-        addActionToHistory('slider_update', {
-          sliderName,
-          value: value[1],
-          status: 'success',
-        });
-      } else {
-        throw new Error('Failed to update slider');
-      }
-    } catch (error) {
-      console.error(`Slider ${sliderName} Error:`, error.message);
-      addActionToHistory('slider_update', {
-        sliderName,
-        value: value[1],
-        status: 'failed',
-        error: error.message,
-      });
-    }
-  }, 300);
 
   const changeACMode = (mode) => {
     setData((prevData) => ({
@@ -359,36 +401,27 @@ const Home = () => {
     }
   };
 
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setCurrentNotification(null);
-  };
+  const handleSendMockNotificationRequest = async () => {
+    await fetch(`${import.meta.env.VITE_SERVER_URL}/app/mock_notification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+    })
+      .then((response) => {
+        console.log(response);
+      })
+      .catch((error) => {
+        console.log(error);
+      })
+  }
 
   return (
     <div className="container-fluid p-0">
       {errors.general && <div className="alert alert-danger">{errors.general}</div>}
 
-      <Modal show={showModal} onHide={handleCloseModal}>
-        <Modal.Header closeButton>
-          <Modal.Title>Notification</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {currentNotification ? (
-            <p>
-              <strong>Service:</strong> {currentNotification.service_type}
-              <br />
-              <strong>Message:</strong> {currentNotification.notification}
-            </p>
-          ) : (
-            <p>No notification available.</p>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseModal}>
-            Close
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      <button onClick={handleSendMockNotificationRequest}>
+        Mock Notification
+      </button>
 
       <div className="row g-3 mb-3">
         {servicesState.air_cond_service !== undefined && (

@@ -9,7 +9,7 @@ import { useUserContext } from '../../../hooks/UserContext.jsx';
 const SideBar = () => {
   const navigate = useNavigate();
 
-  const { eventSource, setEventSource } = useUserContext()
+  const { clearUserContext } = useUserContext()
 
   const handleLogout = async (e) => {
     e.preventDefault();
@@ -28,8 +28,7 @@ const SideBar = () => {
         throw new Error(`Internal server error`);
       }
 
-      eventSource.close();
-      setEventSource(null);
+      clearUserContext();
       toast.success(`Logout successful!`);
       navigate('/');
     }

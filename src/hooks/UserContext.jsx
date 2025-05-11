@@ -4,9 +4,36 @@ import { IOTServices } from '../utils/CommonFields.jsx';
 const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [userData, setUserData] = useState(null);
+  const [userAvatar, setUserAvatar] = useState(null);
 
   const [eventSource, setEventSource] = useState(null);
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentNotification, setCurrentNotification] = useState(null);
+
+  const [actionHistory, setActionHistory] = useState([]);
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setCurrentNotification(null);
+  }
+
+  const newNotificationArrived = (newNotification) => {
+    addActionHistory([newNotification]);
+    setIsModalOpen(true);
+    setCurrentNotification(newNotification);
+  }
+
+  const addActionHistory = (newActions) => {
+    if (newActions.length == 0) {
+      return;
+    }
+
+    setActionHistory((prev) => {
+      return [...newActions, ...prev];
+    })
+  }
 
   const [servicesState, setServicesState] = useState(() => {
     const savedState = localStorage.getItem('servicesState');
@@ -20,81 +47,41 @@ export const UserProvider = ({ children }) => {
     distance: 0,
   });
 
-  const [SSENotification, setSSENotification] = useState([]);
+  const clearUserContext = () => {
+    setUserData(null);
+    setUserAvatar(null);
+    setActionHistory([]);
+    setSensorData([]);
+    setServicesState(null);
 
-  const [actionHistory, setActionHistory] = useState({
-    service_toggle: [],
-    user_update: [],
-    avatar_update: [],
-  });
-
-  const [activityLog, setActivityLog] = useState([]);
-
-  const addActionToHistory = (type, action) => {
-    // Tạo một ID duy nhất cho mỗi hành động
-    const actionId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
-    const newAction = { id: actionId, timestamp: new Date().toISOString(), ...action };
-
-    setActionHistory((prev) => {
-      const newHistory = { ...prev };
-      const currentActions = newHistory[type] || [];
-      const newActions = [newAction, ...currentActions].slice(0, 10);
-      newHistory[type] = newActions;
-
-      // Thêm vào activityLog với ID duy nhất
-      setActivityLog((prevLog) => {
-        const existingIds = new Set(prevLog.map((item) => item.id));
-        // Chỉ thêm nếu ID chưa tồn tại
-        if (!existingIds.has(actionId)) {
-          return [
-            { id: actionId, type: 'action', actionType: type, details: newAction, timestamp: newAction.timestamp },
-            ...prevLog,
-          ].slice(0, 40);
-        }
-        return prevLog;
-      });
-
-      return newHistory;
-    });
-  };
-
-  // useEffect(() => {
-  //   const source = new EventSource(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/app/events`, {
-  //     withCredentials: true,
-  //   });
-
-  //   source.onmessage = (event) => {
-  //     const notification = JSON.parse(event.data);
-  //     console.log('Received SSE notification:', notification);
-  //     const timestamp = new Date().toISOString();
-  //     setActivityLog((prevLog) =>
-  //       [{ type: 'notification', ...notification, timestamp }, ...prevLog].slice(0, 40)
-  //     );
-  //   };
-
-  //   source.onerror = (error) => {
-  //     console.error('SSE error:', error);
-  //   };
-
-  //   return () => {
-  //     source.close();
-  //   };
-  // }, []);
+    if (eventSource) {
+      eventSource.close();
+      setEventSource(null);
+    }
+  }
 
   const value = {
-    user,
-    setUser,
+    userData,
+    setUserData,
+    userAvatar,
+    setUserAvatar,
     eventSource,
     setEventSource,
+    isModalOpen,
+    setIsModalOpen,
+    currentNotification,
+    setCurrentNotification,
+    actionHistory,
+    setActionHistory,
+    newNotificationArrived,
+    addActionHistory,
+    closeModal,
     servicesState,
-    SSENotification,
-    setSSENotification,
     setServicesState,
     sensorData,
     setSensorData,
-    actionHistory,
-    addActionToHistory,
-    activityLog,
+    // addActionToHistory,
+    // activityLog,
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
@@ -104,7 +91,7 @@ export const UserProvider = ({ children }) => {
 export const useUserContext = () => {
   const context = useContext(UserContext);
   if (!context) {
-    throw new Error('useUser must be used within a UserProvider');
+    throw new Error('useUserContext must be used within a UserProvider');
   }
   return context;
 }
