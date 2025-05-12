@@ -8,30 +8,52 @@ export const UserProvider = ({ children }) => {
     const saved = localStorage.getItem('userData');
     return saved ? JSON.parse(saved) : null;
   });
+
   const [userAvatar, setUserAvatar] = useState(() => {
     const saved = localStorage.getItem('userAvatar');
     return saved ? saved : null;
   });
+
+  const [systemState, setSystemState] = useState(() => {
+    const saved = localStorage.getItem('systemState');
+    return saved ? saved : false;
+  });
+
   const [servicesState, setServicesState] = useState(() => {
     const saved = localStorage.getItem('servicesState');
     return saved
       ? JSON.parse(saved)
       : Object.fromEntries(Object.keys(IOTServices).map((key) => [key, true]));
   });
+
   const [actionHistory, setActionHistory] = useState(() => {
     const saved = localStorage.getItem('actionHistory');
     return saved ? JSON.parse(saved) : [];
   });
+
   const [sensorData, setSensorData] = useState(() => {
     const saved = localStorage.getItem('sensorData');
     return saved
       ? JSON.parse(saved)
       : { temperature: 0, humidity: 0, lightLevel: 0, distance: 0 };
   });
+
   const [eventSource, setEventSource] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentNotification, setCurrentNotification] = useState(null);
-  const [isAppInitialized, setIsAppInitialized] = useState(false);
+
+  useEffect(() => {
+    const handleRefreshFail = () => {
+      clearUserContext();
+    };
+
+    window.addEventListener('refresh_fail', handleRefreshFail);
+
+    return () => {
+      window.removeEventListener('refresh_fail', handleRefreshFail);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     localStorage.setItem('userData', JSON.stringify(userData));
@@ -40,6 +62,10 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     localStorage.setItem('userAvatar', userAvatar);
   }, [userAvatar]);
+
+  useEffect(() => {
+    localStorage.setItem('systemState', systemState);
+  }, [systemState]);
 
   useEffect(() => {
     localStorage.setItem('servicesState', JSON.stringify(servicesState));
@@ -54,10 +80,9 @@ export const UserProvider = ({ children }) => {
   }, [sensorData]);
 
   const initializeApp = async () => {
-    if (isAppInitialized) return;
-    setIsAppInitialized(true);
     try {
-      const [userDataResponse, userAvatarResponse, servicesResponse, historyResponse, sensorResponse] =
+      setSystemState(false);
+      const [userDataResponse, userAvatarResponse, servicesResponse] =
         await Promise.all([
           fetch(`${import.meta.env.VITE_SERVER_URL}/user/`, {
             method: 'GET',
@@ -73,17 +98,7 @@ export const UserProvider = ({ children }) => {
             method: 'GET',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-          }),
-          fetch(`${import.meta.env.VITE_SERVER_URL}/app/action_history`, {
-            method: 'GET',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-          }),
-          fetch(`${import.meta.env.VITE_SERVER_URL}/app/sensor_data?sensor_types=temp,humid,dist,lux`, {
-            method: 'GET',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-          }),
+          })
         ]);
 
       if (userDataResponse.ok) {
@@ -100,25 +115,9 @@ export const UserProvider = ({ children }) => {
         const data = await servicesResponse.json();
         setServicesState(data);
       }
-      if (historyResponse.ok) {
-        const data = await historyResponse.json();
-        setActionHistory(data);
-      }
-      if (sensorResponse.ok) {
-        const data = await sensorResponse.json();
-        const newSensorData = { ...sensorData };
-        data.forEach((sensor) => {
-          const value = parseFloat(sensor.value);
-          const type = sensor.sensor_type.toLowerCase().replace(/\s+|\W+/g, '');
-          if (type === 'temp') newSensorData.temperature = value;
-          if (type === 'humid') newSensorData.humidity = value;
-          if (type === 'dist') newSensorData.distance = value;
-          if (type === 'lux') newSensorData.lightLevel = value;
-        });
-        setSensorData(newSensorData);
-      }
     } catch (error) {
       console.error('Error initializing app:', error);
+      clearUserContext();
     }
   };
 
@@ -141,13 +140,13 @@ export const UserProvider = ({ children }) => {
   const clearUserContext = () => {
     setUserData(null);
     setUserAvatar(null);
-    setActionHistory([]);
-    setSensorData({ temperature: 0, humidity: 0, lightLevel: 0, distance: 0 });
-    setServicesState(
-      Object.fromEntries(Object.keys(IOTServices).map((key) => [key, true]))
-    );
+    setSystemState(null);
+    setActionHistory(null);
+    setSensorData(null);
+    setServicesState(null);
     localStorage.removeItem('userData');
     localStorage.removeItem('userAvatar');
+    localStorage.removeItem('systemState');
     localStorage.removeItem('actionHistory');
     localStorage.removeItem('sensorData');
     localStorage.removeItem('servicesState');
@@ -162,6 +161,8 @@ export const UserProvider = ({ children }) => {
     setUserData,
     userAvatar,
     setUserAvatar,
+    systemState,
+    setSystemState,
     eventSource,
     setEventSource,
     isModalOpen,
@@ -178,13 +179,13 @@ export const UserProvider = ({ children }) => {
     sensorData,
     setSensorData,
     clearUserContext,
-    isAppInitialized,
     initializeApp,
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useUserContext = () => {
   const context = useContext(UserContext);
   if (!context) {

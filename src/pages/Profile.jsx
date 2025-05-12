@@ -1,88 +1,75 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import styles from '../components/Home/Profile.module.css';
 import defaultAvatar from '../assets/images/avt.jpg';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { useUserContext } from '../hooks/UserContext.jsx';
 import toast from 'react-hot-toast';
-import { handleRefreshToken } from '../utils/helpers.js';
+import apiClient from '../services/APIClient.jsx';
 
 function Profile() {
-  const navigate = useNavigate();
-  const { userData, setUserData, userAvatar, setUserAvatar, addActionToHistory, clearUserContext } = useUserContext();
+  const {
+    userData,
+    setUserData,
+    userAvatar,
+    setUserAvatar
+  } = useUserContext();
+  
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    return dateStr.split('-').reverse().join('-');
+  };
 
-  const [formData, setFormData] = useState({
-    username: '',
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    date_of_birth: '',
+  const [formData, setFormData] = useState(() => {
+    return userData || {
+        address: "",
+        date_of_birth: "",
+        email: "",
+        name: "",
+        phone: ""
+    };
   });
   const [avatar, setAvatar] = useState(userAvatar || defaultAvatar);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const formatDateForInput = (dateStr) => {
-    if (!dateStr) return '';
-    return dateStr.split('-').reverse().join('-');
-  };
-
-  const formatDateForServer = (dateStr) => {
-    if (!dateStr) return '';
-    return dateStr.split('-').reverse().join('-');
-  };
-
   useEffect(() => {
-    const fetchUserData = async (retry = true) => {
-      if (userData) {
-        const formattedUser = {
-          ...userData,
-          date_of_birth: formatDateForInput(userData.date_of_birth),
-        };
-        setFormData(formattedUser);
-        setLoading(false);
-        return;
-      }
+    if (userData && userAvatar) return;
 
+    const handleGetUserData = async () => {
       setLoading(true);
-      setError(null);
-
       try {
-        const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/user/`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-        });
-
-        if (response.status === 401 && retry) {
-          const refreshed = await handleRefreshToken(navigate, clearUserContext);
-          if (refreshed) {
-            return fetchUserData(false);
-          }
-        }
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        data.date_of_birth = formatDateForInput(data.date_of_birth);
-        setUserData(data);
-        setFormData(data);
-      } catch (error) {
-        const errorMessage = error.message.includes('401')
-          ? 'Unauthorized access. Please log in again.'
-          : 'Failed to load user data. Please try again later.';
-        setError(errorMessage);
-      } finally {
+        const _userData = await apiClient('GET', `${import.meta.env.VITE_SERVER_URL}/user/`);
+        setUserData(_userData);
+        setFormData(_userData);
+      }
+      catch (error) {
+        console.error('Fail to get user data: ', error);
+        setError(error);
+      }
+      finally {
         setLoading(false);
       }
-    };
+    }
+    const handleGetUserAvatar = async () => {
+      setLoading(true);
+      try {
+        const _userAvatar = await apiClient('GET', `${import.meta.env.VITE_SERVER_URL}/user/avatar`);
+        setUserAvatar(_userAvatar);
+      }
+      catch (error) {
+        console.error('Fail to get user avatar: ', error);
+      }
+      finally {
+        setLoading(false);
+      }
+    }
 
-    fetchUserData();
-  }, [userData, setUserData, navigate, clearUserContext]);
+    if (!userData) handleGetUserData();
+    if (!userAvatar) handleGetUserAvatar();
+
+    return () => {};
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -103,136 +90,63 @@ function Profile() {
     }
   };
 
-  const handleSubmitUserData = async (e, retry = true) => {
+  const handleSubmitUserData = async (e) => {
     e.preventDefault();
 
     try {
-      const dataToSend = {
-        ...formData,
-        date_of_birth: formatDateForServer(formData.date_of_birth),
-      };
-
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/user/`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSend),
-      });
-
-      if (response.status === 401 && retry) {
-        const refreshed = await handleRefreshToken(navigate, clearUserContext);
-        if (refreshed) {
-          return handleSubmitUserData(e, false);
+      const responseData = await apiClient(
+        "PATCH",
+        `${import.meta.env.VITE_SERVER_URL}/user/`,
+        {
+          body: JSON.stringify(formData)
         }
-      }
+      );
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setUserData(data);
-      toast.success('Profile updated successfully!');
-      addActionToHistory('user_update', {
-        status: 'success',
-      });
-    } catch (error) {
-      const errorMessage = error.message.includes('401')
-        ? 'Unauthorized access. Please log in again.'
-        : error.message.includes('422')
-        ? 'Validation error: Please check your input data.'
-        : 'Failed to update profile. Please try again later.';
-      toast.error(errorMessage);
-      addActionToHistory('user_update', {
-        status: 'failed',
-        error: errorMessage,
-      });
+      toast.success(responseData.message);
+      setUserData(formData);
     }
-  };
+    catch(error) {
+      toast.error(error);
+    }
+  }
 
-  const handleSubmitAvatar = async (file, retry = true) => {
+  const handleSubmitAvatar = async (e, file) => {
+    e.preventDefault();
+
     try {
       const avatarFormData = new FormData();
       avatarFormData.append('file', file);
 
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/user/avatar`, {
-        method: 'PUT',
-        credentials: 'include',
-        body: avatarFormData,
-      });
-
-      if (response.status === 401 && retry) {
-        const refreshed = await handleRefreshToken(navigate, clearUserContext);
-        if (refreshed) {
-          return handleSubmitAvatar(file, false);
+      const responseData = await apiClient(
+        'PUT',
+        `${import.meta.env.VITE_SERVER_URL}/user/avatar`,
+        {
+          body: avatarFormData
         }
-      }
+      );
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-
-      toast.success('Avatar updated successfully!');
-      addActionToHistory('avatar_update', {
-        action: 'upload',
-        status: 'success',
-      });
-    } catch (error) {
-      const errorMessage = error.message.includes('401')
-        ? 'Unauthorized access. Please log in again.'
-        : 'Failed to update avatar. Please try again later.';
-      setError(errorMessage);
-      addActionToHistory('avatar_update', {
-        action: 'upload',
-        status: 'failed',
-        error: errorMessage,
-      });
+      toast.success(responseData.message);
     }
-  };
+    catch(error) {
+      toast.error(error);
+    }
+  }
 
-  const handleDeleteAvatar = async (e, retry = true) => {
+  const handleDeleteAvatar = async (e) => {
     e.preventDefault();
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/user/avatar`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const responseData = await apiClient(
+        'DELETE',
+        `${import.meta.env.VITE_SERVER_URL}/user/avatar`
+      );
 
-      if (response.status === 401 && retry) {
-        const refreshed = await handleRefreshToken(navigate, clearUserContext);
-        if (refreshed) {
-          return handleDeleteAvatar(e, false);
-        }
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-
-      setAvatar(defaultAvatar);
-      setUserAvatar(null);
-      toast.success('Avatar deleted successfully!');
-      addActionToHistory('avatar_update', {
-        action: 'delete',
-        status: 'success',
-      });
-    } catch (error) {
-      const errorMessage = error.message.includes('401')
-        ? 'Unauthorized access. Please log in again.'
-        : 'Failed to delete avatar. Please try again later.';
-      toast.error(errorMessage);
-      addActionToHistory('avatar_update', {
-        action: 'delete',
-        status: 'failed',
-        error: errorMessage,
-      });
+      toast.success(responseData.message);
     }
-  };
+    catch(error) {
+      toast.error(error);
+    }
+  }
 
   return (
     <div className={`pt-1 ${styles.container}`}>
@@ -274,7 +188,7 @@ function Profile() {
                       className={`form-control ${styles.formControl}`}
                       id="name"
                       name="name"
-                      value={formData.name || ''}
+                      value={formData?.name || ''}
                       onChange={handleChange}
                       placeholder="your name"
                     />
@@ -289,7 +203,7 @@ function Profile() {
                       className={`form-control ${styles.formControl}`}
                       id="email"
                       name="email"
-                      value={formData.email || ''}
+                      value={formData?.email || ''}
                       onChange={handleChange}
                       placeholder="abc@gmail.com"
                     />
@@ -304,7 +218,7 @@ function Profile() {
                       className={`form-control ${styles.formControl}`}
                       id="phone"
                       name="phone"
-                      value={formData.phone || ''}
+                      value={formData?.phone || ''}
                       onChange={handleChange}
                       placeholder="0123456789"
                     />
@@ -320,7 +234,7 @@ function Profile() {
                       className={`form-control ${styles.formControl}`}
                       id="address"
                       name="address"
-                      value={formData.address || ''}
+                      value={formData?.address || ''}
                       onChange={handleChange}
                       placeholder="House number, street name,..."
                     />
@@ -335,7 +249,7 @@ function Profile() {
                       className={`form-control ${styles.formControl}`}
                       id="date_of_birth"
                       name="date_of_birth"
-                      value={formData.date_of_birth || ''}
+                      value={formatDate(formData?.date_of_birth) || ''}
                       onChange={handleChange}
                     />
                   </div>

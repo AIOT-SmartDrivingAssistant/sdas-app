@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import styles from '../components/Home/activityHistory.module.css';
 import { useUserContext } from '../hooks/UserContext.jsx';
-import { formatTimestamp, mapServiceType, handleRefreshToken } from '../utils/helpers.js';
+import { formatTimestamp, mapServiceType } from '../utils/helpers.js';
+import apiClient from '../services/APIClient.jsx';
 
 export default function ActivityHistory() {
-  const navigate = useNavigate();
-  const { actionHistory, addActionHistory, clearUserContext } = useUserContext();
+  const { actionHistory, addActionHistory } = useUserContext();
   const [initialActivities, setInitialActivities] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -15,7 +14,7 @@ export default function ActivityHistory() {
   const MAX_PAGES = 5;
   const MAX_ITEMS = MAX_PAGES * itemsPerPage;
 
-  const handleGetInitialHistory = async (retry = true) => {
+  const handleGetInitialHistory = async () => {
     if (actionHistory && actionHistory.length >= 4) {
       const formattedInitialActivities = actionHistory.map((item, index) => ({
         id: index + 1,
@@ -31,29 +30,15 @@ export default function ActivityHistory() {
     setError(null);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/app/action_history`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const responseData = await apiClient(
+        'GET',
+        `${import.meta.env.VITE_SERVER_URL}/app/action_history`
+      );
 
-      if (response.status === 401 && retry) {
-        const refreshed = await handleRefreshToken(navigate, clearUserContext);
-        if (refreshed) {
-          return handleGetInitialHistory(false);
-        }
-      }
+      console.log('Action history fetched successfully: ', responseData);
+      await addActionHistory(responseData);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('Action history fetched successfully: ', data);
-      await addActionHistory(data);
-
-      const formattedInitialActivities = data.map((item, index) => ({
+      const formattedInitialActivities = responseData.map((item, index) => ({
         id: index + 1,
         time: formatTimestamp(item.timestamp),
         type: mapServiceType(item.service_type),
@@ -62,10 +47,7 @@ export default function ActivityHistory() {
       setInitialActivities(formattedInitialActivities);
     } catch (error) {
       console.error('Error fetching action history:', error);
-      const errorMessage = error.message.includes('401')
-        ? 'Unauthorized. Please login again.'
-        : 'Failed to load action history. Please try again later.';
-      setError(errorMessage);
+      setError(error);
     } finally {
       setLoading(false);
     }
@@ -73,6 +55,7 @@ export default function ActivityHistory() {
 
   useEffect(() => {
     handleGetInitialHistory();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const allActivities = useMemo(() => {
@@ -82,6 +65,7 @@ export default function ActivityHistory() {
         return index === self.findIndex((t) => `${t.time}-${t.type}-${t.status}` === key);
       })
       .slice(0, MAX_ITEMS);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialActivities]);
 
   const currentItems = useMemo(() => {

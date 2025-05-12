@@ -1,14 +1,12 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import styles from '../components/Home/Services.module.css';
+import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import { useUserContext } from '../hooks/UserContext.jsx';
 import { IOTServices } from '../utils/CommonFields.jsx';
-import { handleRefreshToken } from '../utils/helpers.js';
-import toast from 'react-hot-toast';
+import apiClient from '../services/APIClient.jsx';
 
 function Services() {
-  const navigate = useNavigate();
-  const { servicesState, setServicesState, addActionToHistory, clearUserContext } = useUserContext();
+  const { systemState, servicesState, setServicesState } = useUserContext();
   const [isLoading, setIsLoading] = useState({
     air_cond_service: false,
     drowsiness_service: false,
@@ -29,11 +27,8 @@ function Services() {
     [IOTServices.dist_service]: { title: 'Distance', description: 'Distance between objects' },
   };
 
-  // Kiểm tra trạng thái hệ thống
-  const isSystemOn = Object.values(servicesState).some((state) => state === serviceModes.on);
-
-  const handleToggleChange = async (serviceType, value, retry = true) => {
-    if (isLoading[serviceType] || !isSystemOn) return;
+  const handleToggleChange = async (serviceType, value) => {
+    if (isLoading[serviceType] || !systemState) return;
 
     const newValue = value ? serviceModes.on : serviceModes.off;
     console.log(`Toggling ${serviceType} to ${newValue}`);
@@ -44,54 +39,23 @@ function Services() {
     const newServicesState = { ...servicesState, [serviceType]: newValue };
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/iot/service`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ service_type: serviceType, value: newValue }),
-      });
-
-      if (response.status === 401 && retry) {
-        const refreshed = await handleRefreshToken(navigate, clearUserContext);
-        if (refreshed) {
-          return handleToggleChange(serviceType, value, false);
+      const responseData = await apiClient(
+        'PATCH',
+        `${import.meta.env.VITE_SERVER_URL}/iot/service`,
+        {
+          body: JSON.stringify({ service_type: serviceType, value: newValue }),
         }
-      }
+      );
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('Service response:', data);
+      console.log('Service response:', responseData);
 
       setServicesState(newServicesState);
       console.log(`Service ${serviceType} updated to ${newValue}`);
-      addActionToHistory('service_toggle', {
-        serviceType,
-        value: newValue,
-        status: 'success',
-      });
       toast.success(`Service ${serviceDisplayNames[serviceType].title} turned ${newValue}!`);
     } catch (error) {
-      console.error('Error updating service:', error);
-      const errorMessage = error.message.includes('401')
-        ? 'Unauthorized access. Please log in again.'
-        : error.message.includes('422')
-        ? 'Invalid request. Please try again.'
-        : error.message.includes('429')
-        ? 'Too many requests. Please try again later.'
-        : 'Failed to update service. Please try again later.';
-      setError(errorMessage);
+      setError(error);
       setServicesState(prevState);
-      addActionToHistory('service_toggle', {
-        serviceType,
-        value: newValue,
-        status: 'failed',
-        error: errorMessage,
-      });
-      toast.error(errorMessage);
+      toast.error(`Error updating service: ${error}`);
     } finally {
       setIsLoading((prev) => ({ ...prev, [serviceType]: false }));
     }
@@ -123,7 +87,7 @@ function Services() {
             id={`${serviceType}Toggle`}
             checked={servicesState[serviceType] === serviceModes.on}
             onChange={() => handleToggleChange(serviceType, servicesState[serviceType] !== serviceModes.on)}
-            disabled={isLoading[serviceType] || !isSystemOn}
+            disabled={isLoading[serviceType] || !systemState}
           />
         </div>
       </div>
@@ -145,7 +109,7 @@ function Services() {
         </div>
       )}
 
-      {!isSystemOn && (
+      {!systemState && (
         <div className="alert alert-warning" role="alert">
           System is currently off. Please turn on the system in the sidebar to interact with services.
         </div>

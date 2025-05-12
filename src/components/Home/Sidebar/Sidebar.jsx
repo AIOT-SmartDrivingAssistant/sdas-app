@@ -4,101 +4,45 @@ import clsx from 'clsx';
 import Robot from '../../../assets/robot.svg';
 import toast from 'react-hot-toast';
 import { useUserContext } from '../../../hooks/UserContext.jsx';
-import { handleRefreshToken } from '../../../utils/helpers.js';
+import apiClient from '../../../services/APIClient.jsx';
 
 const SideBar = () => {
   const navigate = useNavigate();
-  const { servicesState, setServicesState, clearUserContext, addActionToHistory } = useUserContext();
-
-  // Kiểm tra trạng thái hệ thống (bật nếu ít nhất một dịch vụ bật)
-  const isSystemOn = Object.values(servicesState).some((state) => state === 'on');
+  const { systemState, setSystemState, clearUserContext } = useUserContext();
 
   const handleLogout = async (e) => {
     e.preventDefault();
     try {
-      const logoutResponse = await fetch(`${import.meta.env.VITE_SERVER_URL}/auth/logout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
+      const logoutResponse = await apiClient(
+        'POST',
+        `${import.meta.env.VITE_SERVER_URL}/auth/logout`
+      );
 
-      const logoutResponseData = await logoutResponse.json();
-      console.log(`Logout response:`, logoutResponseData);
-
-      if (!logoutResponse.ok) {
-        throw new Error(`Internal server error`);
-      }
+      console.log(`Logout response:`, logoutResponse);
 
       clearUserContext();
       toast.success(`Logout successful!`);
       navigate('/');
     } catch (error) {
-      console.log(`Logout error:`, error);
       toast.error(error.message);
     }
   };
 
-  const handleSystemToggle = async (value, retry = true) => {
+  const handleSystemToggle = async (value) => {
     const command = value ? 'on' : 'off';
-    console.log(`Turning ${command} the system`);
-
-    const prevState = { ...servicesState };
-    const newServicesState = Object.fromEntries(
-      Object.keys(servicesState).map((key) => [key, value ? 'on' : 'off'])
-    );
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const responseData = await apiClient(
+        'POST',
+        `${import.meta.env.VITE_SERVER_URL}/iot/${command}`
+      );
 
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/iot/${command}`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-      });
+      setSystemState(value);
 
-      clearTimeout(timeoutId);
-
-      if (response.status === 401 && retry) {
-        const refreshed = await handleRefreshToken(navigate, clearUserContext);
-        if (refreshed) {
-          return handleSystemToggle(value, false);
-        }
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log(`System turned ${command}:`, data);
-
-      setServicesState(newServicesState);
-      addActionToHistory('system_toggle', {
-        command,
-        status: 'success',
-      });
+      console.log(`System turned ${command}:`, responseData);
       toast.success(`System turned ${command} successfully!`);
     } catch (error) {
-      console.error(`Error turning ${command} the system:`, error);
-      const errorMessage = error.message.includes('401')
-        ? 'Unauthorized access. Please log in again.'
-        : error.message.includes('400')
-        ? 'Invalid request. Please try again.'
-        : error.message.includes('429')
-        ? 'Too many requests. Please try again later.'
-        : error.name === 'AbortError'
-        ? 'Request timed out. Please try again.'
-        : 'Failed to update system state. Please try again later.';
-      toast.error(errorMessage);
-      setServicesState(prevState);
-      addActionToHistory('system_toggle', {
-        command,
-        status: 'failed',
-        error: errorMessage,
-      });
+      toast.error(`Error turning ${command} the system: ${error}`);
     }
   };
 
@@ -118,8 +62,8 @@ const SideBar = () => {
             <input
               type="checkbox"
               className="form-check-input ms-auto"
-              checked={isSystemOn}
-              onChange={() => handleSystemToggle(!isSystemOn)}
+              checked={systemState}
+              onChange={() => handleSystemToggle(!systemState)}
             />
           </div>
         </li>
