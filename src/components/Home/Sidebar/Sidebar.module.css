@@ -69,3 +69,21 @@
   width: 2rem;
   margin-right: 1rem;
 }
+
+.systemToggle {
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  color: #333;
+  font-weight: 500;
+  transition: background-color 0.3s;
+}
+
+.systemToggle:hover {
+  background-color: #f0f0f0;
+}
+
+.systemToggle .form-check-input {
+  margin-left: auto;
+  cursor: pointer;
+}
