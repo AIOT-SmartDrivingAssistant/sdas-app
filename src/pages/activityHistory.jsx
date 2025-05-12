@@ -1,74 +1,64 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styles from '../components/Home/activityHistory.module.css';
-import React, { useState, useEffect } from 'react';
 import { useUserContext } from '../hooks/UserContext.jsx';
+import { formatTimestamp, mapServiceType, handleRefreshToken } from '../utils/helpers.js';
 
 export default function ActivityHistory() {
-  // const { activityLog } = useUserContext();
-  const { actionHistory, addActionHistory } = useUserContext();
+  const navigate = useNavigate();
+  const { actionHistory, addActionHistory, clearUserContext } = useUserContext();
   const [initialActivities, setInitialActivities] = useState([]);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(8);
-
   const MAX_PAGES = 5;
-  const ITEMS_PER_PAGE = 8;
-  const MAX_ITEMS = MAX_PAGES * ITEMS_PER_PAGE;
+  const MAX_ITEMS = MAX_PAGES * itemsPerPage;
 
-  const formatTimestamp = (timestamp) => {
-    const date = new Date(timestamp);
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-    return `${hours}:${minutes}:${seconds}`;
-  };
-
-  const mapServiceType = (type) => {
-    const typeMap = {
-      driver_monitoring: 'Driver monitoring',
-      air_cond_service: 'Air conditioning',
-      smart_headlights: 'Smart headlights',
-      headlight: 'Smart headlights',
-      air_cond_temp: 'Air conditioning temperature',
-    };
-    return typeMap[type] || type;
-  };
-
-  console.log("actionHistory: ", actionHistory);
-  console.log("initialActivities: ", initialActivities);
-
-  const handleGetInitialHistory = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      if (!actionHistory || actionHistory.length < 4) {
-        const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/app/action_history`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-        });
-  
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-        }
-  
-        const data = await response.json();
-        console.log('Action history fetched successfully: ', data);
-  
-        await addActionHistory(data);
-      }
-
+  const handleGetInitialHistory = async (retry = true) => {
+    if (actionHistory && actionHistory.length >= 4) {
       const formattedInitialActivities = actionHistory.map((item, index) => ({
         id: index + 1,
         time: formatTimestamp(item.timestamp),
-        type: mapServiceType(item.service_type) || item.service_type,
+        type: mapServiceType(item.service_type),
         status: item.description,
       }));
+      setInitialActivities(formattedInitialActivities);
+      return;
+    }
 
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/app/action_history`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (response.status === 401 && retry) {
+        const refreshed = await handleRefreshToken(navigate, clearUserContext);
+        if (refreshed) {
+          return handleGetInitialHistory(false);
+        }
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Action history fetched successfully: ', data);
+      await addActionHistory(data);
+
+      const formattedInitialActivities = data.map((item, index) => ({
+        id: index + 1,
+        time: formatTimestamp(item.timestamp),
+        type: mapServiceType(item.service_type),
+        status: item.description,
+      }));
       setInitialActivities(formattedInitialActivities);
     } catch (error) {
       console.error('Error fetching action history:', error);
@@ -83,78 +73,22 @@ export default function ActivityHistory() {
 
   useEffect(() => {
     handleGetInitialHistory();
-  }, [actionHistory]);
+  }, []);
 
-  // Format activityLog entries for display
-  // const formattedActivityLog = Array.isArray(activityLog)
-  //   ? activityLog.reduce((acc, item, index) => {
-  //       // Chỉ hiển thị một lần cho mỗi hành động dựa trên ID hoặc timestamp + type
-  //       const uniqueKey = item.id || item.timestamp + item.type + (item.details?.serviceType || '');
-  //       if (acc.some((existing) => existing.uniqueKey === uniqueKey)) {
-  //         return acc;
-  //       }
+  const allActivities = useMemo(() => {
+    return initialActivities
+      .filter((item, index, self) => {
+        const key = `${item.time}-${item.type}-${item.status}`;
+        return index === self.findIndex((t) => `${t.time}-${t.type}-${t.status}` === key);
+      })
+      .slice(0, MAX_ITEMS);
+  }, [initialActivities]);
 
-  //       let typeDisplay = '';
-  //       let statusDisplay = '';
-
-  //       if (item.type === 'notification') {
-  //         typeDisplay = mapServiceType(item.service_type) || 'Notification';
-  //         statusDisplay = item.notification || item.message;
-  //       } else if (item.type === 'action') {
-  //         const actionDetails = item.details;
-  //         switch (item.actionType) {
-  //           case 'service_toggle':
-  //             typeDisplay = `Service Toggle (${actionDetails.serviceType})`;
-  //             statusDisplay = `Set to ${actionDetails.value} - ${
-  //               actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
-  //             }`;
-  //             break;
-  //           case 'user_update':
-  //             typeDisplay = 'User Profile Update';
-  //             statusDisplay = actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`;
-  //             break;
-  //           case 'avatar_update':
-  //             typeDisplay = 'Avatar Update';
-  //             statusDisplay = `${actionDetails.action} - ${
-  //               actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
-  //             }`;
-  //             break;
-  //           case 'slider_update':
-  //             typeDisplay = `Slider Update (${actionDetails.sliderName})`;
-  //             statusDisplay = `Set to ${actionDetails.value} - ${
-  //               actionDetails.status === 'success' ? 'Success' : `Failed (${actionDetails.error})`
-  //             }`;
-  //             break;
-  //           default:
-  //             typeDisplay = item.actionType || 'Unknown Action';
-  //             statusDisplay = JSON.stringify(actionDetails);
-  //         }
-  //       }
-
-  //       acc.push({
-  //         id: initialActivities.length + acc.length + 1,
-  //         time: formatTimestamp(item.timestamp),
-  //         type: typeDisplay,
-  //         status: statusDisplay,
-  //         uniqueKey,
-  //       });
-
-  //       return acc;
-  //     }, [])
-  //   : [];
-
-  // const allActivities = [...initialActivities, ...formattedActivityLog]
-  const allActivities = initialActivities
-    .filter((item, index, self) => {
-      // Loại bỏ các hoạt động trùng lặp dựa trên time + type + status
-      const key = `${item.time}-${item.type}-${item.status}`;
-      return index === self.findIndex((t) => `${t.time}-${t.type}-${t.status}` === key);
-    })
-    .slice(0, MAX_ITEMS);
-
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = allActivities.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = useMemo(() => {
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    return allActivities.slice(indexOfFirstItem, indexOfLastItem);
+  }, [allActivities, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(allActivities.length / itemsPerPage);
 
@@ -225,7 +159,10 @@ export default function ActivityHistory() {
       ) : error ? (
         <div className="alert alert-danger" role="alert">
           {error}
-          <button className="btn btn-sm btn-outline-danger float-end" onClick={handleGetInitialHistory}>
+          <button
+            className="btn btn-sm btn-outline-danger float-end"
+            onClick={() => handleGetInitialHistory()}
+          >
             Retry
           </button>
         </div>

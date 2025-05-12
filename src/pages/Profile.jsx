@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styles from '../components/Home/Profile.module.css';
 import defaultAvatar from '../assets/images/avt.jpg';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { useUserContext } from '../hooks/UserContext.jsx';
 import toast from 'react-hot-toast';
+import { handleRefreshToken } from '../utils/helpers.js';
 
 function Profile() {
-  const { userData, setUserData, userAvatar, setUserAvatar, addActionToHistory } = useUserContext();
+  const navigate = useNavigate();
+  const { userData, setUserData, userAvatar, setUserAvatar, addActionToHistory, clearUserContext } = useUserContext();
 
   const [formData, setFormData] = useState({
     username: '',
@@ -16,7 +19,7 @@ function Profile() {
     address: '',
     date_of_birth: '',
   });
-  const [avatar, setAvatar] = useState(defaultAvatar);
+  const [avatar, setAvatar] = useState(userAvatar || defaultAvatar);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -31,8 +34,7 @@ function Profile() {
   };
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      // Kiểm tra nếu user đã có trong UserContext
+    const fetchUserData = async (retry = true) => {
       if (userData) {
         const formattedUser = {
           ...userData,
@@ -43,16 +45,22 @@ function Profile() {
         return;
       }
 
-      // Nếu không có user, fetch từ API
       setLoading(true);
       setError(null);
 
       try {
-        const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/`, {
+        const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/user/`, {
           method: 'GET',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
         });
+
+        if (response.status === 401 && retry) {
+          const refreshed = await handleRefreshToken(navigate, clearUserContext);
+          if (refreshed) {
+            return fetchUserData(false);
+          }
+        }
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
@@ -61,12 +69,9 @@ function Profile() {
 
         const data = await response.json();
         data.date_of_birth = formatDateForInput(data.date_of_birth);
-        console.log('Dữ liệu tải về:', data);
-
         setUserData(data);
         setFormData(data);
       } catch (error) {
-        console.error('Lỗi khi tải dữ liệu:', error);
         const errorMessage = error.message.includes('401')
           ? 'Unauthorized access. Please log in again.'
           : 'Failed to load user data. Please try again later.';
@@ -77,7 +82,7 @@ function Profile() {
     };
 
     fetchUserData();
-  }, [userData, setUserData]);
+  }, [userData, setUserData, navigate, clearUserContext]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -88,14 +93,17 @@ function Profile() {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (event) => setAvatar(event.target.result);
+      reader.onload = (event) => {
+        setAvatar(event.target.result);
+        setUserAvatar(event.target.result);
+      };
       reader.readAsDataURL(file);
 
       handleSubmitAvatar(file);
     }
   };
 
-  const handleSubmitUserData = async (e) => {
+  const handleSubmitUserData = async (e, retry = true) => {
     e.preventDefault();
 
     try {
@@ -103,56 +111,75 @@ function Profile() {
         ...formData,
         date_of_birth: formatDateForServer(formData.date_of_birth),
       };
-      console.log('Update data:', dataToSend);
 
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/`, {
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/user/`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSend),
       });
 
+      if (response.status === 401 && retry) {
+        const refreshed = await handleRefreshToken(navigate, clearUserContext);
+        if (refreshed) {
+          return handleSubmitUserData(e, false);
+        }
+      }
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('Response:', data);
-      setUserAvatar(data);
-
+      setUserData(data);
       toast.success('Profile updated successfully!');
+      addActionToHistory('user_update', {
+        status: 'success',
+      });
     } catch (error) {
-      console.error('Error updating user data:', error);
       const errorMessage = error.message.includes('401')
         ? 'Unauthorized access. Please log in again.'
         : error.message.includes('422')
         ? 'Validation error: Please check your input data.'
         : 'Failed to update profile. Please try again later.';
       toast.error(errorMessage);
+      addActionToHistory('user_update', {
+        status: 'failed',
+        error: errorMessage,
+      });
     }
   };
 
-  const handleSubmitAvatar = async (file) => {
+  const handleSubmitAvatar = async (file, retry = true) => {
     try {
       const avatarFormData = new FormData();
       avatarFormData.append('file', file);
 
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/avatar`, {
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/user/avatar`, {
         method: 'PUT',
         credentials: 'include',
         body: avatarFormData,
       });
+
+      if (response.status === 401 && retry) {
+        const refreshed = await handleRefreshToken(navigate, clearUserContext);
+        if (refreshed) {
+          return handleSubmitAvatar(file, false);
+        }
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
-      console.log('Avatar updated successfully:', data);
+      toast.success('Avatar updated successfully!');
+      addActionToHistory('avatar_update', {
+        action: 'upload',
+        status: 'success',
+      });
     } catch (error) {
-      console.error('Error updating avatar:', error);
       const errorMessage = error.message.includes('401')
         ? 'Unauthorized access. Please log in again.'
         : 'Failed to update avatar. Please try again later.';
@@ -165,32 +192,45 @@ function Profile() {
     }
   };
 
-  const handleDeleteAvatar = async (e) => {
+  const handleDeleteAvatar = async (e, retry = true) => {
     e.preventDefault();
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/user/avatar`, {
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/user/avatar`, {
         method: 'DELETE',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
       });
 
+      if (response.status === 401 && retry) {
+        const refreshed = await handleRefreshToken(navigate, clearUserContext);
+        if (refreshed) {
+          return handleDeleteAvatar(e, false);
+        }
+      }
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData);
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
-      console.log('Avatar deleted successfully:', data);
-      toast.success('Avatar deleted successfully!');
       setAvatar(defaultAvatar);
+      setUserAvatar(null);
+      toast.success('Avatar deleted successfully!');
+      addActionToHistory('avatar_update', {
+        action: 'delete',
+        status: 'success',
+      });
     } catch (error) {
-      console.error('Error deleting avatar:', error);
       const errorMessage = error.message.includes('401')
         ? 'Unauthorized access. Please log in again.'
         : 'Failed to delete avatar. Please try again later.';
       toast.error(errorMessage);
+      addActionToHistory('avatar_update', {
+        action: 'delete',
+        status: 'failed',
+        error: errorMessage,
+      });
     }
   };
 

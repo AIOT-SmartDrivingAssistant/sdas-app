@@ -1,20 +1,26 @@
 import 'react-range-slider-input/dist/style.css';
 import styles from '../components/Home/Home.module.css';
-
 import React, { useState, useEffect } from 'react';
-
+import { useNavigate } from 'react-router-dom';
 import { useUserContext } from '../hooks/UserContext.jsx';
 import { SensorTypes } from '../utils/CommonFields.jsx';
+import { handleRefreshToken } from '../utils/helpers.js';
 
 const Home = () => {
+  const navigate = useNavigate();
   const {
+    userData,
     setUserData,
+    userAvatar,
     setUserAvatar,
     servicesState,
     setServicesStatus,
-    sensorData, 
-    setSensorData, 
+    sensorData,
+    setSensorData,
     addActionToHistory,
+    isAppInitialized,
+    initializeApp,
+    clearUserContext,
   } = useUserContext();
 
   const [data, setData] = useState({
@@ -28,7 +34,7 @@ const Home = () => {
     driverStatus: 'Alert',
     airConditioner: {
       status: 'Manual',
-      temperature: 1, // Giá trị mặc định trong khoảng 1-100
+      temperature: 1,
     },
   });
 
@@ -47,102 +53,90 @@ const Home = () => {
     drowsiness_service: null,
   });
 
-  const [isInitialized, setIsInitialized] = useState(false);
-
-  const handleGetUserData = async () => {
+  const handleGetUserData = async (retry = true) => {
+    if (userData && userAvatar) return;
     try {
       const [getUserDataResponse, getUserAvatarResponse] = await Promise.all([
         fetch(`${import.meta.env.VITE_SERVER_URL}/user/`, {
           method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
         }),
         fetch(`${import.meta.env.VITE_SERVER_URL}/user/avatar`, {
           method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-        })
+          headers: { 'Content-Type': 'application/json' },
+        }),
       ]);
 
       let _userData = null;
       let _userAvatar = null;
-      let userDataError = null;
-      let userAvatarError = null;
 
-      // Handle user data response
-      try {
+      if (getUserDataResponse.status === 401 && retry) {
+        const refreshed = await handleRefreshToken(navigate, clearUserContext);
+        if (refreshed) {
+          return handleGetUserData(false);
+        }
+      } else if (getUserDataResponse.ok) {
         _userData = await getUserDataResponse.json();
-        if (!getUserDataResponse.ok) {
-          userDataError = _userData.message || `Fail to fetch user's data`;
-          _userData = null;
-        }
-      } catch (e) {
-        console.error(e);
-        userDataError = `Fail to parse user data`;
-        _userData = null;
-      }
-
-      // Handle user avatar response
-      if (getUserAvatarResponse.ok) {
-        try {
-          _userAvatar = await getUserAvatarResponse.blob();
-        } catch (e) {
-          console.error(e);
-          userAvatarError = `Fail to parse user avatar`;
-          _userAvatar = null;
-        }
       } else {
-        try {
-          const avatarErrorData = await getUserAvatarResponse.json();
-          userAvatarError = avatarErrorData.message || `Fail to fetch user's avatar`;
-        } catch (e) {
-          console.error(e);
-          userAvatarError = `Fail to fetch user's avatar`;
-        }
-        _userAvatar = null;
+        const errorData = await getUserDataResponse.json().catch(() => ({}));
+        console.error(errorData.message || 'Failed to fetch user data');
       }
 
-      userDataError? console.error(userDataError) : console.log(`User's data: `, _userData);
-      userAvatarError? console.error(userAvatarError) : console.log(`User's avatar: `, _userAvatar);
+      if (getUserAvatarResponse.status === 401 && retry) {
+        const refreshed = await handleRefreshToken(navigate, clearUserContext);
+        if (refreshed) {
+          return handleGetUserData(false);
+        }
+      } else if (getUserAvatarResponse.ok) {
+        const blob = await getUserAvatarResponse.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          _userAvatar = reader.result;
+          setUserAvatar(_userAvatar);
+        };
+        reader.readAsDataURL(blob);
+      } else {
+        const errorData = await getUserAvatarResponse.json().catch(() => ({}));
+        console.error(errorData.message || 'Failed to fetch user avatar');
+      }
 
       setUserData(_userData);
-      setUserAvatar(_userAvatar);
-
-      if (userDataError || userAvatarError) {
-        throw new Error([userDataError, userAvatarError].filter(Boolean).join(' | '));
-      }
-    }
-    catch (error) {
-      console.error(`Error at handleGetUserData: `, error);
+    } catch (error) {
+      console.error('Error at handleGetUserData:', error);
     }
   };
 
-  const handleGetServicesStatus = async () => {
+  const handleGetServicesStatus = async (retry = true) => {
+    if (servicesState) return;
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SERVER_URL}/app/services_status`,
-        {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        },
-      );
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/app/services_status`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
 
-      const responseData = await response.json();
-
-      if (!response.ok) {
-        console.error(responseData);
-        throw new Error(responseData.message);
+      if (response.status === 401 && retry) {
+        const refreshed = await handleRefreshToken(navigate, clearUserContext);
+        if (refreshed) {
+          return handleGetServicesStatus(false);
+        }
       }
 
-      setServicesStatus(responseData);
-    }
-    catch (error) {
-      console.error(error);
-    }
-  }
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to fetch services status');
+      }
 
-  const handleGetSensorData = async () => {
+      const responseData = await response.json();
+      setServicesStatus(responseData);
+    } catch (error) {
+      console.error('Error at handleGetServicesStatus:', error);
+    }
+  };
+
+  const handleGetSensorData = async (retry = true) => {
     setErrors((prev) => ({
       ...prev,
       air_cond_service: null,
@@ -190,13 +184,20 @@ const Home = () => {
         `${import.meta.env.VITE_SERVER_URL}/app/sensor_data?sensor_types=${sensorTypesParam}`,
         {
           method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           signal: controller.signal,
-        },
+        }
       );
 
       clearTimeout(timeoutId);
+
+      if (response.status === 401 && retry) {
+        const refreshed = await handleRefreshToken(navigate, clearUserContext);
+        if (refreshed) {
+          return handleGetSensorData(false);
+        }
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -264,24 +265,10 @@ const Home = () => {
   };
 
   useEffect(() => {
-    const runInitialize = async () => {
-      try {
-        setIsInitialized(true);
-        await handleGetServicesStatus();
-        const sensorSuccess = await handleGetSensorData();
-        if (!sensorSuccess) {
-          setErrors((prev) => ({ ...prev, general: 'Failed to fetch sensor data.' }));
-        }
-
-        handleGetUserData();
-      } catch (error) {
-        console.error('Error in initialize:', error);
-        setErrors((prev) => ({ ...prev, general: 'Failed to initialize application: ' + error.message }));
-      }
-    };
-
-    runInitialize();
-  }, []);
+    if (!isAppInitialized) {
+      initializeApp();
+    }
+  }, [isAppInitialized, initializeApp]);
 
   const getDistanceWarning = (distance) => {
     if (distance < 50) return { class: 'bg-danger', message: 'Danger' };
@@ -299,12 +286,11 @@ const Home = () => {
     }));
   };
 
-  const sendACTemperatureToBackend = async (temperature) => {
+  const sendACTemperatureToBackend = async (temperature, retry = true) => {
     if (servicesState.air_cond_service !== 'on') return;
-  
-    // Giới hạn giá trị từ 1 đến 100
+
     const constrainedValue = Math.max(1, Math.min(100, temperature));
-  
+
     try {
       setLoading((prev) => ({ ...prev, air_cond_service: true }));
       const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/iot/service`, {
@@ -316,25 +302,32 @@ const Home = () => {
           value: constrainedValue.toString(),
         }),
       });
-  
-      if (response.ok) {
-        console.log('Temperature updated successfully:', await response.json());
-        setData((prevData) => ({
-          ...prevData,
-          airConditioner: {
-            ...prevData.airConditioner,
-            temperature: constrainedValue,
-          },
-        }));
-        addActionToHistory('service_toggle', {
-          serviceType: 'air_cond_temp',
-          value: constrainedValue,
-          status: 'success',
-        }); // Thêm dấu chấm phẩy ở đây
-      } else {
+
+      if (response.status === 401 && retry) {
+        const refreshed = await handleRefreshToken(navigate, clearUserContext);
+        if (refreshed) {
+          return sendACTemperatureToBackend(temperature, false);
+        }
+      }
+
+      if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Failed to update temperature');
       }
+
+      console.log('Temperature updated successfully:', await response.json());
+      setData((prevData) => ({
+        ...prevData,
+        airConditioner: {
+          ...prevData.airConditioner,
+          temperature: constrainedValue,
+        },
+      }));
+      addActionToHistory('service_toggle', {
+        serviceType: 'air_cond_temp',
+        value: constrainedValue,
+        status: 'success',
+      });
     } catch (error) {
       console.error('Error updating temperature:', error.message);
       setErrors((prev) => ({
@@ -346,7 +339,7 @@ const Home = () => {
         value: constrainedValue,
         status: 'failed',
         error: error.message,
-      }); // Thêm dấu chấm phẩy ở đây
+      });
     } finally {
       setLoading((prev) => ({ ...prev, air_cond_service: false }));
     }
@@ -401,25 +394,37 @@ const Home = () => {
     }
   };
 
-  const handleSendMockNotificationRequest = async () => {
-    await fetch(`${import.meta.env.VITE_SERVER_URL}/app/mock_notification`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-    })
-      .then((response) => {
-        console.log(response);
-      })
-      .catch((error) => {
-        console.log(error);
-      })
-  }
+  const handleSendMockNotificationRequest = async (retry = true) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/app/mock_notification`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (response.status === 401 && retry) {
+        const refreshed = await handleRefreshToken(navigate, clearUserContext);
+        if (refreshed) {
+          return handleSendMockNotificationRequest(false);
+        }
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to send mock notification');
+      }
+
+      console.log('Mock notification sent:', await response.json());
+    } catch (error) {
+      console.error('Error sending mock notification:', error);
+    }
+  };
 
   return (
     <div className="container-fluid p-0">
       {errors.general && <div className="alert alert-danger">{errors.general}</div>}
 
-      <button onClick={handleSendMockNotificationRequest}>
+      <button onClick={() => handleSendMockNotificationRequest()}>
         Mock Notification
       </button>
 

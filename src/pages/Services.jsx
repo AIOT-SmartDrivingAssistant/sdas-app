@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styles from '../components/Home/Services.module.css';
 import { useUserContext } from '../hooks/UserContext.jsx';
 import { IOTServices } from '../utils/CommonFields.jsx';
+import { handleRefreshToken } from '../utils/helpers.js';
 
 function Services() {
-  const { servicesState, setServicesState, addActionToHistory } = useUserContext();
+  const navigate = useNavigate();
+  const { servicesState, setServicesState, addActionToHistory, clearUserContext } = useUserContext();
   const [isLoading, setIsLoading] = useState({
     air_cond_service: false,
     drowsiness_service: false,
@@ -28,7 +31,7 @@ function Services() {
 
   const isSystemOn = Object.values(servicesState).some((state) => state === serviceModes.on);
 
-  const handleToggleChange = async (serviceType, value) => {
+  const handleToggleChange = async (serviceType, value, retry = true) => {
     if (isLoading[serviceType]) return;
 
     const newValue = value ? serviceModes.on : serviceModes.off;
@@ -40,16 +43,23 @@ function Services() {
     const newServicesState = { ...servicesState, [serviceType]: newValue };
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/iot/service`, {
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/iot/service`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ service_type: serviceType, value: newValue }),
       });
 
+      if (response.status === 401 && retry) {
+        const refreshed = await handleRefreshToken(navigate, clearUserContext);
+        if (refreshed) {
+          return handleToggleChange(serviceType, value, false);
+        }
+      }
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || errorData.detail || `HTTP error! status: ${response.status}`);
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
@@ -63,18 +73,14 @@ function Services() {
         status: 'success',
       });
     } catch (error) {
-      console.error('Error updating service:', {
-        message: error.message,
-        stack: error.stack,
-      });
-      const errorMessage =
-        error.message.includes('401')
-          ? 'Unauthorized access. Please log in again.'
-          : error.message.includes('422')
-          ? 'Invalid request. Please try again.'
-          : error.message.includes('429')
-          ? 'Too many requests. Please try again later.'
-          : 'Failed to update service. Please try again later.';
+      console.error('Error updating service:', error);
+      const errorMessage = error.message.includes('401')
+        ? 'Unauthorized access. Please log in again.'
+        : error.message.includes('422')
+        ? 'Invalid request. Please try again.'
+        : error.message.includes('429')
+        ? 'Too many requests. Please try again later.'
+        : 'Failed to update service. Please try again later.';
       setError(errorMessage);
       setServicesState(prevState);
       addActionToHistory('service_toggle', {
@@ -88,7 +94,7 @@ function Services() {
     }
   };
 
-  const handleSystemToggle = async (value) => {
+  const handleSystemToggle = async (value, retry = true) => {
     if (isLoading['system']) return;
 
     const command = value ? 'on' : 'off';
@@ -105,7 +111,7 @@ function Services() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/iot/${command}`, {
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/iot/${command}`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -114,9 +120,16 @@ function Services() {
 
       clearTimeout(timeoutId);
 
+      if (response.status === 401 && retry) {
+        const refreshed = await handleRefreshToken(navigate, clearUserContext);
+        if (refreshed) {
+          return handleSystemToggle(value, false);
+        }
+      }
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || errorData.detail || `HTTP error! status: ${response.status}`);
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
@@ -128,20 +141,16 @@ function Services() {
         status: 'success',
       });
     } catch (error) {
-      console.error(`Error turning ${command} the system:`, {
-        message: error.message,
-        stack: error.stack,
-      });
-      const errorMessage =
-        error.message.includes('401')
-          ? 'Unauthorized access. Please log in again.'
-          : error.message.includes('400')
-          ? 'Invalid request. Please try again.'
-          : error.message.includes('429')
-          ? 'Too many requests. Please try again later.'
-          : error.name === 'AbortError'
-          ? 'Request timed out. Please try again.'
-          : 'Failed to update system state. Please try again later.';
+      console.error(`Error turning ${command} the system:`, error);
+      const errorMessage = error.message.includes('401')
+        ? 'Unauthorized access. Please log in again.'
+        : error.message.includes('400')
+        ? 'Invalid request. Please try again.'
+        : error.message.includes('429')
+        ? 'Too many requests. Please try again later.'
+        : error.name === 'AbortError'
+        ? 'Request timed out. Please try again.'
+        : 'Failed to update system state. Please try again later.';
       setError(errorMessage);
       setServicesState(prevState);
       addActionToHistory('system_toggle', {
