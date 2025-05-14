@@ -13,10 +13,7 @@ const SideBar = () => {
   const handleLogout = async (e) => {
     e.preventDefault();
     try {
-      const logoutResponse = await apiClient(
-        'POST',
-        `${import.meta.env.VITE_SERVER_URL}/auth/logout`
-      );
+      const logoutResponse = await apiClient('POST', `${import.meta.env.VITE_SERVER_URL}/auth/logout`);
 
       console.log(`Logout response:`, logoutResponse);
 
@@ -32,10 +29,7 @@ const SideBar = () => {
     const command = value ? 'on' : 'off';
 
     try {
-      const responseData = await apiClient(
-        'POST',
-        `${import.meta.env.VITE_SERVER_URL}/iot/${command}`
-      );
+      const responseData = await apiClient('POST', `${import.meta.env.VITE_SERVER_URL}/iot/${command}`);
 
       setSystemState(value);
 
@@ -55,16 +49,26 @@ const SideBar = () => {
       <ul className={styles.list}>
         <li>
           <div className={clsx(styles.sidebarLink, styles.systemToggle)}>
-            <div className={styles.icon}>
-              <i className="fa-solid fa-power-off"></i>
-            </div>
-            <span>System</span>
-            <input
-              type="checkbox"
-              className="form-check-input ms-auto"
-              checked={systemState}
-              onChange={() => handleSystemToggle(!systemState)}
-            />
+            <label class="form-check-label" for="switchCheckDefault">
+              <div className="d-flex">
+                <div className={styles.icon}>
+                  <i className="fa-solid fa-power-off"></i>
+                </div>
+                <label class="form-check-label" for="switchCheckDefault">
+                  System
+                </label>
+                <div class="form-check form-switch">
+                  <input
+                    class="form-check-input ms-auto"
+                    type="checkbox"
+                    checked={systemState}
+                    role="switch"
+                    id="switchCheckDefault"
+                    onChange={() => handleSystemToggle(!systemState)}
+                  />
+                </div>
+              </div>
+            </label>
           </div>
         </li>
         <li>
