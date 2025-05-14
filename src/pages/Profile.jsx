@@ -7,26 +7,23 @@ import toast from 'react-hot-toast';
 import apiClient from '../services/APIClient.jsx';
 
 function Profile() {
-  const {
-    userData,
-    setUserData,
-    userAvatar,
-    setUserAvatar
-  } = useUserContext();
-  
+  const { userData, setUserData, userAvatar, setUserAvatar } = useUserContext();
+
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
     return dateStr.split('-').reverse().join('-');
   };
 
   const [formData, setFormData] = useState(() => {
-    return userData || {
-        address: "",
-        date_of_birth: "",
-        email: "",
-        name: "",
-        phone: ""
-    };
+    return (
+      userData || {
+        address: '',
+        date_of_birth: '',
+        email: '',
+        name: '',
+        phone: '',
+      }
+    );
   });
   const [avatar, setAvatar] = useState(userAvatar || defaultAvatar);
   const [loading, setLoading] = useState(false);
@@ -41,35 +38,31 @@ function Profile() {
         const _userData = await apiClient('GET', `${import.meta.env.VITE_SERVER_URL}/user/`);
         setUserData(_userData);
         setFormData(_userData);
-      }
-      catch (error) {
+      } catch (error) {
         console.error('Fail to get user data: ', error);
         setError(error);
-      }
-      finally {
+      } finally {
         setLoading(false);
       }
-    }
+    };
     const handleGetUserAvatar = async () => {
       setLoading(true);
       try {
         const _userAvatar = await apiClient('GET', `${import.meta.env.VITE_SERVER_URL}/user/avatar`);
         setUserAvatar(_userAvatar);
-      }
-      catch (error) {
+      } catch (error) {
         console.error('Fail to get user avatar: ', error);
-      }
-      finally {
+      } finally {
         setLoading(false);
       }
-    }
+    };
 
     if (!userData) handleGetUserData();
     if (!userAvatar) handleGetUserAvatar();
 
     return () => {};
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -94,21 +87,16 @@ function Profile() {
     e.preventDefault();
 
     try {
-      const responseData = await apiClient(
-        "PATCH",
-        `${import.meta.env.VITE_SERVER_URL}/user/`,
-        {
-          body: JSON.stringify(formData)
-        }
-      );
+      const responseData = await apiClient('PATCH', `${import.meta.env.VITE_SERVER_URL}/user/`, {
+        body: JSON.stringify(formData),
+      });
 
       toast.success(responseData.message);
       setUserData(formData);
-    }
-    catch(error) {
+    } catch (error) {
       toast.error(error);
     }
-  }
+  };
 
   const handleSubmitAvatar = async (e, file) => {
     e.preventDefault();
@@ -117,36 +105,27 @@ function Profile() {
       const avatarFormData = new FormData();
       avatarFormData.append('file', file);
 
-      const responseData = await apiClient(
-        'PUT',
-        `${import.meta.env.VITE_SERVER_URL}/user/avatar`,
-        {
-          body: avatarFormData
-        }
-      );
+      const responseData = await apiClient('PUT', `${import.meta.env.VITE_SERVER_URL}/user/avatar`, {
+        body: avatarFormData,
+      });
 
       toast.success(responseData.message);
-    }
-    catch(error) {
+    } catch (error) {
       toast.error(error);
     }
-  }
+  };
 
   const handleDeleteAvatar = async (e) => {
     e.preventDefault();
 
     try {
-      const responseData = await apiClient(
-        'DELETE',
-        `${import.meta.env.VITE_SERVER_URL}/user/avatar`
-      );
+      const responseData = await apiClient('DELETE', `${import.meta.env.VITE_SERVER_URL}/user/avatar`);
 
       toast.success(responseData.message);
-    }
-    catch(error) {
+    } catch (error) {
       toast.error(error);
     }
-  }
+  };
 
   return (
     <div className={`pt-1 ${styles.container}`}>
@@ -168,10 +147,10 @@ function Profile() {
               <label htmlFor="avatarUpload" className={styles.editIcon}>
                 <i className={`fa-solid fa-pencil ${styles.smallIcon}`}></i>
               </label>
-              <input type="file" id="avatarUpload" className="d-none" accept="image/*" onChange={handleAvatarChange} />
               <button onClick={handleDeleteAvatar} className={styles.deleteButton}>
-                Delete Avatar
+                <i className="fa-solid fa-trash-can"></i>
               </button>
+              <input type="file" id="avatarUpload" className="d-none" accept="image/*" onChange={handleAvatarChange} />
             </div>
           </div>
 
