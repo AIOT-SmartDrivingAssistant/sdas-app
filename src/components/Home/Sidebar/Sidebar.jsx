@@ -49,17 +49,17 @@ const SideBar = () => {
       <ul className={styles.list}>
         <li>
           <div className={clsx(styles.sidebarLink, styles.systemToggle)}>
-            <label class="form-check-label" for="switchCheckDefault">
-              <div className="d-flex">
+            <label className="form-check-label" htmlFor="switchCheckDefault">
+              <div className="d-flex flex-wrap justify-content-flex-start justify-content-md-center">
                 <div className={styles.icon}>
                   <i className="fa-solid fa-power-off"></i>
                 </div>
-                <label class="form-check-label" for="switchCheckDefault">
+                <label className="form-check-label" htmlFor="switchCheckDefault">
                   System
                 </label>
-                <div class="form-check form-switch">
+                <div className="form-check form-switch" style={{ paddingLeft: '0.8rem' }}>
                   <input
-                    class="form-check-input ms-auto"
+                    className="form-check-input ms-auto"
                     type="checkbox"
                     checked={systemState}
                     role="switch"

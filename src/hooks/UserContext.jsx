@@ -16,14 +16,12 @@ export const UserProvider = ({ children }) => {
 
   const [systemState, setSystemState] = useState(() => {
     const saved = localStorage.getItem('systemState');
-    return saved ? saved : false;
+    return saved === 'true' ? true : false;
   });
 
   const [servicesState, setServicesState] = useState(() => {
     const saved = localStorage.getItem('servicesState');
-    return saved
-      ? JSON.parse(saved)
-      : Object.fromEntries(Object.keys(IOTServices).map((key) => [key, true]));
+    return saved ? JSON.parse(saved) : Object.fromEntries(Object.keys(IOTServices).map((key) => [key, true]));
   });
 
   const [actionHistory, setActionHistory] = useState(() => {
@@ -33,9 +31,7 @@ export const UserProvider = ({ children }) => {
 
   const [sensorData, setSensorData] = useState(() => {
     const saved = localStorage.getItem('sensorData');
-    return saved
-      ? JSON.parse(saved)
-      : { temperature: 0, humidity: 0, lightLevel: 0, distance: 0 };
+    return saved ? JSON.parse(saved) : { temperature: 0, humidity: 0, lightLevel: 0, distance: 0 };
   });
 
   const [eventSource, setEventSource] = useState(null);
@@ -51,9 +47,9 @@ export const UserProvider = ({ children }) => {
 
     return () => {
       window.removeEventListener('refresh_fail', handleRefreshFail);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('userData', JSON.stringify(userData));
@@ -82,24 +78,23 @@ export const UserProvider = ({ children }) => {
   const initializeApp = async () => {
     try {
       setSystemState(false);
-      const [userDataResponse, userAvatarResponse, servicesResponse] =
-        await Promise.all([
-          fetch(`${import.meta.env.VITE_SERVER_URL}/user/`, {
-            method: 'GET',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-          }),
-          fetch(`${import.meta.env.VITE_SERVER_URL}/user/avatar`, {
-            method: 'GET',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-          }),
-          fetch(`${import.meta.env.VITE_SERVER_URL}/app/services_status`, {
-            method: 'GET',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-          })
-        ]);
+      const [userDataResponse, userAvatarResponse, servicesResponse] = await Promise.all([
+        fetch(`${import.meta.env.VITE_SERVER_URL}/user/`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        }),
+        fetch(`${import.meta.env.VITE_SERVER_URL}/user/avatar`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        }),
+        fetch(`${import.meta.env.VITE_SERVER_URL}/app/services_status`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ]);
 
       if (userDataResponse.ok) {
         const data = await userDataResponse.json();

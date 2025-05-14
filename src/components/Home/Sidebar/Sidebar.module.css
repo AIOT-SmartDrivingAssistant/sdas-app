@@ -87,6 +87,10 @@
   padding-left: 0;
 }
 
+.systemToggle .form-check {
+  padding-left: 0;
+}
+
 .systemToggle > label {
   cursor: pointer;
 }
