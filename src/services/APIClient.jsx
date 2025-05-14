@@ -12,19 +12,23 @@ const processQueue = (error, success) => {
     failedQueue = [];
 };
 
-async function apiClient(method, url, options = {}) {
+async function apiClient(method, url, options = {}, manualHeaders = true) {
     const headers = {
         'Content-Type': 'application/json',
         ...(options.headers || {}),
     };
 
-    const fetchOptions = {
+    let fetchOptions = {
         method,
         headers,
         credentials: 'include',
         ...(options.body && { body: options.body }),
         ...options,
     };
+
+    if (manualHeaders) {
+        delete fetchOptions.headers;
+    }
 
     // eslint-disable-next-line no-useless-catch
     try {
