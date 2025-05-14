@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { IOTServices } from '../utils/CommonFields.jsx';
-
+import default_avatar from '../assets/images/default_avatar.png';
 const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
@@ -11,7 +11,7 @@ export const UserProvider = ({ children }) => {
 
   const [userAvatar, setUserAvatar] = useState(() => {
     const saved = localStorage.getItem('userAvatar');
-    return saved ? saved : null;
+    return saved ? saved : default_avatar;
   });
 
   const [systemState, setSystemState] = useState(() => {
@@ -110,6 +110,9 @@ export const UserProvider = ({ children }) => {
         const reader = new FileReader();
         reader.onloadend = () => setUserAvatar(reader.result);
         reader.readAsDataURL(blob);
+      }else{
+        // Đặt avatar mặc định nếu fetch không thành công
+        setUserAvatar(default_avatar);
       }
       if (servicesResponse.ok) {
         const data = await servicesResponse.json();
@@ -117,6 +120,8 @@ export const UserProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error initializing app:', error);
+      // Đặt avatar mặc định nếu fetch không thành công
+      setUserAvatar(default_avatar);
       clearUserContext();
     }
   };
@@ -139,7 +144,7 @@ export const UserProvider = ({ children }) => {
 
   const clearUserContext = () => {
     setUserData(null);
-    setUserAvatar(null);
+    setUserAvatar(default_avatar);// Đặt avatar mặc định thay vì null
     setSystemState(null);
     setActionHistory(null);
     setSensorData(null);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styles from '../components/Home/Profile.module.css';
-import defaultAvatar from '../assets/images/avt.jpg';
+import defaultAvatar from '../assets/images/default_avatar.png';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { useUserContext } from '../hooks/UserContext.jsx';
 import toast from 'react-hot-toast';
