@@ -128,13 +128,13 @@ export const UserProvider = ({ children }) => {
 
   const newNotificationArrived = (newNotification) => {
     addActionHistory([newNotification]);
-    setIsModalOpen(true);
     setCurrentNotification(newNotification);
+    setIsModalOpen(true);
   };
 
   const addActionHistory = (newActions) => {
     if (newActions.length === 0) return;
-    setActionHistory((prev) => [...newActions, ...prev]);
+    setActionHistory((prev) => [...newActions, ...(prev || [])]);
   };
 
   const clearUserContext = () => {
