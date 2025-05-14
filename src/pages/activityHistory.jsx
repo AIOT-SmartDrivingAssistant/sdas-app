@@ -14,6 +14,8 @@ export default function ActivityHistory() {
   const MAX_PAGES = 5;
   const MAX_ITEMS = MAX_PAGES * itemsPerPage;
 
+  console.log(actionHistory);
+
   const handleGetInitialHistory = async () => {
     if (actionHistory && actionHistory.length >= 4) {
       const formattedInitialActivities = actionHistory.map((item, index) => ({
@@ -38,7 +40,7 @@ export default function ActivityHistory() {
       console.log('Action history fetched successfully: ', responseData);
       await addActionHistory(responseData);
 
-      const formattedInitialActivities = responseData.map((item, index) => ({
+      const formattedInitialActivities = actionHistory.map((item, index) => ({
         id: index + 1,
         time: formatTimestamp(item.timestamp),
         type: mapServiceType(item.service_type),

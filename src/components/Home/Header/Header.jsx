@@ -3,7 +3,7 @@ import { useUserContext } from '../../../hooks/UserContext.jsx';
 import styles from './Header.module.css';
 import Setting from '../../../assets/images/Setting.png';
 import Notification from '../../../assets/images/Notification.png';
-import defaultAvatar from '../../../assets/images/avt.jpg';
+import defaultAvatar from '../../../assets/images/default_avatar.png';
 
 const Header = () => {
   const { userAvatar } = useUserContext();

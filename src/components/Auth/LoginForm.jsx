@@ -7,7 +7,7 @@ import { useUserContext } from '../../hooks/UserContext.jsx';
 
 function LoginForm({ showSignUp }) {
   const navigate = useNavigate();
-  const { setEventSource, setSSENotification, newNotificationArrived } = useUserContext();
+  const { setEventSource, newNotificationArrived } = useUserContext();
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e) => {
@@ -57,7 +57,6 @@ function LoginForm({ showSignUp }) {
         const notification = JSON.parse(event.data);
         console.log('Received SSE notification:', notification);
 
-        setSSENotification((prev) => [...prev, notification]);
         newNotificationArrived(notification);
       }
       source.onerror = (error) => {

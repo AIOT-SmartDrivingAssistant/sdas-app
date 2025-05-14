@@ -79,7 +79,7 @@ function Profile() {
       };
       reader.readAsDataURL(file);
 
-      handleSubmitAvatar(file);
+      handleSubmitAvatar(e, file);
     }
   };
 
@@ -104,10 +104,16 @@ function Profile() {
     try {
       const avatarFormData = new FormData();
       avatarFormData.append('file', file);
+      console.log(avatarFormData)
 
-      const responseData = await apiClient('PUT', `${import.meta.env.VITE_SERVER_URL}/user/avatar`, {
-        body: avatarFormData,
-      });
+      const responseData = await apiClient(
+        'PUT',
+        `${import.meta.env.VITE_SERVER_URL}/user/avatar`,
+        {
+          body: avatarFormData,
+        },
+        true
+      );
 
       toast.success(responseData.message);
     } catch (error) {
@@ -121,6 +127,8 @@ function Profile() {
     try {
       const responseData = await apiClient('DELETE', `${import.meta.env.VITE_SERVER_URL}/user/avatar`);
 
+      setUserAvatar(null);
+      setAvatar(defaultAvatar);
       toast.success(responseData.message);
     } catch (error) {
       toast.error(error);
