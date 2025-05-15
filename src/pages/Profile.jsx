@@ -9,11 +9,6 @@ import apiClient from '../services/APIClient.jsx';
 function Profile() {
   const { userData, setUserData, userAvatar, setUserAvatar } = useUserContext();
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    return dateStr.split('-').reverse().join('-');
-  };
-
   const [formData, setFormData] = useState(() => {
     return (
       userData || {
@@ -28,6 +23,8 @@ function Profile() {
   const [avatar, setAvatar] = useState(userAvatar || defaultAvatar);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (userData && userAvatar) return;
@@ -79,7 +76,7 @@ function Profile() {
       };
       reader.readAsDataURL(file);
 
-      handleSubmitAvatar(e, file);
+      handleSubmitAvatar(file);
     }
   };
 
@@ -93,26 +90,22 @@ function Profile() {
 
       toast.success(responseData.message);
       setUserData(formData);
+      setIsEditing(false);
     } catch (error) {
-      toast.error(error);
+      toast.error(error?.message || 'An error occurred.');
     }
   };
 
-  const handleSubmitAvatar = async (e, file) => {
-    e.preventDefault();
-
+  const handleSubmitAvatar = async (file) => {
     try {
       const avatarFormData = new FormData();
       avatarFormData.append('file', file);
-      console.log(avatarFormData)
 
       const responseData = await apiClient(
         'PUT',
         `${import.meta.env.VITE_SERVER_URL}/user/avatar`,
-        {
-          body: avatarFormData,
-        },
-        true
+        { body: avatarFormData },
+        true,
       );
 
       toast.success(responseData.message);
@@ -151,103 +144,132 @@ function Profile() {
         <div className="row">
           <div className="col-md-2 text-center">
             <div className={styles.avatarContainer}>
-              <img src={avatar} alt="Avatar" className={styles.avatar} />
+              <img
+                src={avatar}
+                alt="Avatar"
+                className={styles.avatar}
+                style={{ cursor: 'pointer' }}
+                onClick={() => setShowAvatarModal(true)}
+              />
               <label htmlFor="avatarUpload" className={styles.editIcon}>
                 <i className={`fa-solid fa-pencil ${styles.smallIcon}`}></i>
               </label>
-              <button onClick={handleDeleteAvatar} className={styles.deleteButton}>
-                <i className="fa-solid fa-trash-can"></i>
-              </button>
               <input type="file" id="avatarUpload" className="d-none" accept="image/*" onChange={handleAvatarChange} />
             </div>
           </div>
 
           <div className="col-md-10">
-            <form onSubmit={handleSubmitUserData}>
-              <div className="row">
-                <div className="col-md-6">
-                  <div className="mb-3 me-4">
-                    <label htmlFor="name" className={styles.formLabel}>
-                      Your Name
-                    </label>
-                    <input
-                      type="text"
-                      className={`form-control ${styles.formControl}`}
-                      id="name"
-                      name="name"
-                      value={formData?.name || ''}
-                      onChange={handleChange}
-                      placeholder="your name"
-                    />
-                  </div>
-
-                  <div className="mb-3 me-4">
-                    <label htmlFor="email" className={styles.formLabel}>
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      className={`form-control ${styles.formControl}`}
-                      id="email"
-                      name="email"
-                      value={formData?.email || ''}
-                      onChange={handleChange}
-                      placeholder="abc@gmail.com"
-                    />
-                  </div>
-
-                  <div className="mb-3 me-4">
-                    <label htmlFor="phone" className={styles.formLabel}>
-                      Phone Number
-                    </label>
-                    <input
-                      type="text"
-                      className={`form-control ${styles.formControl}`}
-                      id="phone"
-                      name="phone"
-                      value={formData?.phone || ''}
-                      onChange={handleChange}
-                      placeholder="0123456789"
-                    />
-                  </div>
+            <div className="row">
+              <div className="col-md-6">
+                <div className="mb-3 me-4">
+                  <label htmlFor="name" className={styles.formLabel}>
+                    Your Name
+                  </label>
+                  <input
+                    type="text"
+                    className={`form-control ${styles.formControl}`}
+                    id="name"
+                    name="name"
+                    value={formData?.name || ''}
+                    onChange={handleChange}
+                    placeholder="your name"
+                    disabled={!isEditing}
+                  />
                 </div>
-                <div className="col-md-6">
-                  <div className="mb-3 me-4">
-                    <label htmlFor="address" className={styles.formLabel}>
-                      Address
-                    </label>
-                    <input
-                      type="text"
-                      className={`form-control ${styles.formControl}`}
-                      id="address"
-                      name="address"
-                      value={formData?.address || ''}
-                      onChange={handleChange}
-                      placeholder="House number, street name,..."
-                    />
-                  </div>
 
-                  <div className="mb-3 me-4">
-                    <label htmlFor="date_of_birth" className={styles.formLabel}>
-                      Date of Birth
-                    </label>
-                    <input
-                      type="date"
-                      className={`form-control ${styles.formControl}`}
-                      id="date_of_birth"
-                      name="date_of_birth"
-                      value={formatDate(formData?.date_of_birth) || ''}
-                      onChange={handleChange}
-                    />
-                  </div>
+                <div className="mb-3 me-4">
+                  <label htmlFor="email" className={styles.formLabel}>
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    className={`form-control ${styles.formControl}`}
+                    id="email"
+                    name="email"
+                    value={formData?.email || ''}
+                    onChange={handleChange}
+                    placeholder="abc@gmail.com"
+                    disabled={!isEditing}
+                  />
                 </div>
-                <div className={styles.saveButtonContainer}>
-                  <button type="submit" className={styles.submitButton}>
-                    Save
-                  </button>
+
+                <div className="mb-3 me-4">
+                  <label htmlFor="phone" className={styles.formLabel}>
+                    Phone Number
+                  </label>
+                  <input
+                    type="text"
+                    className={`form-control ${styles.formControl}`}
+                    id="phone"
+                    name="phone"
+                    value={formData?.phone || ''}
+                    onChange={handleChange}
+                    placeholder="0123456789"
+                    disabled={!isEditing}
+                  />
                 </div>
               </div>
-            </form>
+              <div className="col-md-6">
+                <div className="mb-3 me-4">
+                  <label htmlFor="address" className={styles.formLabel}>
+                    Address
+                  </label>
+                  <input
+                    type="text"
+                    className={`form-control ${styles.formControl}`}
+                    id="address"
+                    name="address"
+                    value={formData?.address || ''}
+                    onChange={handleChange}
+                    placeholder="House number, street name,..."
+                    disabled={!isEditing}
+                  />
+                </div>
+
+                <div className="mb-3 me-4">
+                  <label htmlFor="date_of_birth" className={styles.formLabel}>
+                    Date of Birth
+                  </label>
+                  <input
+                    type="date"
+                    className={`form-control ${styles.formControl}`}
+                    id="date_of_birth"
+                    name="date_of_birth"
+                    value={formData?.date_of_birth || ''}
+                    onChange={handleChange}
+                    disabled={!isEditing}
+                  />
+                </div>
+              </div>
+              <div className={styles.saveButtonContainer}>
+                {!isEditing ? (
+                  <button type="button" className={styles.submitButton} onClick={() => setIsEditing(true)}>
+                    Edit
+                  </button>
+                ) : (
+                  <form onSubmit={handleSubmitUserData}>
+                    <button type="submit" className={styles.submitButton}>
+                      Save
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showAvatarModal && (
+        <div className={styles.avatarModalOverlay} onClick={() => setShowAvatarModal(false)}>
+          <div className={styles.avatarModalContent} onClick={(e) => e.stopPropagation()}>
+            <img
+              src={avatar}
+              alt="Large Avatar"
+              style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '10px' }}
+              className="mb-3 d-block"
+            />
+            <button onClick={handleDeleteAvatar} className="btn btn-danger">
+              <i className="fa-solid fa-trash-can"></i> Delete
+            </button>
           </div>
         </div>
       )}

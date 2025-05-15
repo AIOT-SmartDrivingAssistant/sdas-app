@@ -105,7 +105,7 @@ export const UserProvider = ({ children }) => {
         const reader = new FileReader();
         reader.onloadend = () => setUserAvatar(reader.result);
         reader.readAsDataURL(blob);
-      }else{
+      } else {
         // Đặt avatar mặc định nếu fetch không thành công
         setUserAvatar(default_avatar);
       }
@@ -127,6 +127,9 @@ export const UserProvider = ({ children }) => {
   };
 
   const newNotificationArrived = (newNotification) => {
+    if (isModalOpen) {
+      setIsModalOpen(false);
+    }
     addActionHistory([newNotification]);
     setCurrentNotification(newNotification);
     setIsModalOpen(true);
@@ -139,7 +142,7 @@ export const UserProvider = ({ children }) => {
 
   const clearUserContext = () => {
     setUserData(null);
-    setUserAvatar(default_avatar);// Đặt avatar mặc định thay vì null
+    setUserAvatar(default_avatar); // Đặt avatar mặc định thay vì null
     setSystemState(null);
     setActionHistory(null);
     setSensorData(null);

@@ -79,10 +79,13 @@ const SideBar = () => {
             Home
           </NavLink>
         </li>
-          <li>
-          <NavLink to="/dashboard" className={({ isActive }) => clsx(styles.sidebarLink, isActive ? styles.active : '')}>
+        <li>
+          <NavLink
+            to="/dashboard"
+            className={({ isActive }) => clsx(styles.sidebarLink, isActive ? styles.active : '')}
+          >
             <div className={styles.icon}>
-              <i className="fa-solid fa-house"></i>
+              <i className="fa-solid fa-gauge"></i>
             </div>
             DashBoard
           </NavLink>

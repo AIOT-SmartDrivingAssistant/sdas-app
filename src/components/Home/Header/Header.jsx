@@ -32,13 +32,7 @@ const Header = () => {
       <div className={styles.content}>
         <div className={styles.pageTitle}>{pageTitle}</div>
         <div className={styles.action}>
-          <img src={Setting} alt="Setting" />
-          <img src={Notification} alt="Notification" />
-          <img
-            src={avatarSrc}
-            alt="Avatar"
-            style={{ width: '50px', height: '50px', borderRadius: '100%' }}
-          />
+          <img src={avatarSrc} alt="Avatar" style={{ width: '50px', height: '50px', borderRadius: '100%' }} />
         </div>
       </div>
     </header>
