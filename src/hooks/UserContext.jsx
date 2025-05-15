@@ -1,6 +1,8 @@
+// UserContext.jsx
 import { createContext, useContext, useState, useEffect } from 'react';
 import { IOTServices } from '../utils/CommonFields.jsx';
 import default_avatar from '../assets/images/default_avatar.png';
+
 const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
@@ -37,6 +39,7 @@ export const UserProvider = ({ children }) => {
   const [eventSource, setEventSource] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentNotification, setCurrentNotification] = useState(null);
+  const [isFirstLoad, setIsFirstLoad] = useState(true); // Thêm trạng thái isFirstLoad
 
   useEffect(() => {
     const handleRefreshFail = () => {
@@ -48,7 +51,6 @@ export const UserProvider = ({ children }) => {
     return () => {
       window.removeEventListener('refresh_fail', handleRefreshFail);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -106,16 +108,15 @@ export const UserProvider = ({ children }) => {
         reader.onloadend = () => setUserAvatar(reader.result);
         reader.readAsDataURL(blob);
       } else {
-        // Đặt avatar mặc định nếu fetch không thành công
         setUserAvatar(default_avatar);
       }
       if (servicesResponse.ok) {
         const data = await servicesResponse.json();
         setServicesState(data);
       }
+      setIsFirstLoad(false); // Đặt isFirstLoad thành false sau khi initializeApp hoàn tất
     } catch (error) {
       console.error('Error initializing app:', error);
-      // Đặt avatar mặc định nếu fetch không thành công
       setUserAvatar(default_avatar);
       clearUserContext();
     }
@@ -142,11 +143,12 @@ export const UserProvider = ({ children }) => {
 
   const clearUserContext = () => {
     setUserData(null);
-    setUserAvatar(default_avatar); // Đặt avatar mặc định thay vì null
+    setUserAvatar(default_avatar);
     setSystemState(null);
     setActionHistory(null);
     setSensorData(null);
     setServicesState(null);
+    setIsFirstLoad(true); // Đặt lại isFirstLoad thành true khi clear context
     localStorage.removeItem('userData');
     localStorage.removeItem('userAvatar');
     localStorage.removeItem('systemState');
@@ -183,12 +185,13 @@ export const UserProvider = ({ children }) => {
     setSensorData,
     clearUserContext,
     initializeApp,
+    isFirstLoad,
+    setIsFirstLoad,
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const useUserContext = () => {
   const context = useContext(UserContext);
   if (!context) {
