@@ -12,7 +12,7 @@ const processQueue = (error, success) => {
     failedQueue = [];
 };
 
-async function apiClient(method, url, options = {}, manualHeaders = true) {
+async function apiClient(method, url, options = {}, manualHeaders = false) {
     const headers = {
         'Content-Type': 'application/json',
         ...(options.headers || {}),

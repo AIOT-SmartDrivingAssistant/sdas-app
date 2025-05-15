@@ -1,8 +1,6 @@
 import 'react-range-slider-input/dist/style.css';
 import styles from '../components/Home/Home.module.css';
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useUserContext } from '../hooks/UserContext.jsx';
 import { Line, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -29,10 +27,6 @@ ChartJS.register(
 );
 
 const DashBoard = () => {
-  const navigate = useNavigate();
-  const { initializeApp } = useUserContext();
-
-  const [isFirstLoad, setIsFirstLoad] = useState(true);
 
   // Lưu trữ lịch sử dữ liệu để vẽ chart
   const [history, setHistory] = useState({
@@ -44,58 +38,39 @@ const DashBoard = () => {
   });
 
   useEffect(() => {
-    const handleInitialize = async () => {
-      await initializeApp();
-      setIsFirstLoad(false);
-    };
-
-    if (isFirstLoad) handleInitialize();
-  }, []);
-
-  useEffect(() => {
     const fetchSensorData = async () => {
       try {
         const _sensorData = await apiClient(
           'GET',
           `${import.meta.env.VITE_SERVER_URL}/app/all_sensor_data`
         );
-        // Khởi tạo mảng lịch sử cho từng loại sensor
-        const temperature = [];
-        const humidity = [];
-        const distance = [];
-        const lightLevel = [];
-        const timestamps = [];
-
-        // Sắp xếp theo thời gian tăng dần
-        const sortedData = [..._sensorData].sort(
-          (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
-        );
-
-        // Gom nhóm theo timestamp, mỗi timestamp là 1 object chứa đủ 4 loại sensor nếu có
-        const timeMap = {};
-        sortedData.forEach((sensor) => {
-          const label = new Date(sensor.timestamp).toLocaleTimeString();
-          if (!timeMap[label]) timeMap[label] = {};
-          timeMap[label][sensor.sensor_type.toLowerCase()] = parseFloat(sensor.value);
-        });
-
-        // Duyệt qua các timestamp đã gom nhóm, đẩy vào các mảng
-        Object.entries(timeMap).forEach(([label, values]) => {
-          temperature.push(values.temp ?? null);
-          humidity.push(values.humid ?? null);
-          distance.push(values.dis ?? null);
-          lightLevel.push(values.lux ?? null);
-          timestamps.push(label);
-        });
-
-        // Giới hạn số điểm hiển thị (ví dụ 20)
         const maxPoints = 20;
+
+        const processSensor = (arr) => {
+          if (!Array.isArray(arr)) return { values: [], labels: [] };
+          // Sắp xếp theo thời gian tăng dần
+          const sorted = [...arr].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+          return {
+            values: sorted.map(item => item.value).slice(-maxPoints),
+            labels: sorted.map(item => new Date(item.timestamp).toLocaleTimeString()).slice(-maxPoints),
+          };
+        };
+
+        const temp = processSensor(_sensorData.temp);
+        const humid = processSensor(_sensorData.humid);
+        const dis = processSensor(_sensorData.dis);
+        const lux = processSensor(_sensorData.lux);
+
+
         setHistory({
-          temperature: temperature.slice(-maxPoints),
-          humidity: humidity.slice(-maxPoints),
-          distance: distance.slice(-maxPoints),
-          lightLevel: lightLevel.slice(-maxPoints),
-          timestamps: timestamps.slice(-maxPoints),
+          temperature: temp.values,
+          temperatureLabels: temp.labels,
+          humidity: humid.values,
+          humidityLabels: humid.labels,
+          distance: dis.values,
+          distanceLabels: dis.labels,
+          lightLevel: lux.values,
+          lightLevelLabels: lux.labels,
         });
       } catch (error) {
         console.error('Fail to fetch sensor data:', error);
@@ -112,7 +87,7 @@ const DashBoard = () => {
 
   // Chart data configs
   const temperatureData = {
-    labels: history.timestamps,
+    labels: history.temperatureLabels,
     datasets: [
       {
         label: 'Temperature (°C)',
@@ -126,7 +101,7 @@ const DashBoard = () => {
   };
 
   const humidityData = {
-    labels: history.timestamps,
+    labels: history.humidityLabels,
     datasets: [
       {
         label: 'Humidity (%)',
@@ -140,7 +115,7 @@ const DashBoard = () => {
   };
 
   const distanceData = {
-    labels: history.timestamps,
+    labels: history.distanceLabels,
     datasets: [
       {
         label: 'Distance (cm)',
@@ -154,10 +129,10 @@ const DashBoard = () => {
   };
 
   const lightLevelData = {
-    labels: history.timestamps,
+    labels: history.lightLevelLabels,
     datasets: [
       {
-        label: 'Light Level (%)',
+        label: 'Light Level (lux)',
         data: history.lightLevel,
         borderColor: 'rgba(75, 192, 192, 1)',
         backgroundColor: 'rgba(75, 192, 192, 0.2)',

@@ -1,5 +1,5 @@
 import styles from '../components/Home/Services.module.css';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useUserContext } from '../hooks/UserContext.jsx';
 import { IOTServices } from '../utils/CommonFields.jsx';
@@ -15,6 +15,12 @@ function Services() {
   });
   const [error, setError] = useState(null);
 
+  const [ pageServicesState, setPageServicesState ] = useState(servicesState);
+
+  useEffect(() => {
+    setPageServicesState(servicesState);
+  }, [pageServicesState, servicesState])
+
   const serviceModes = {
     on: 'on',
     off: 'off',
@@ -27,6 +33,8 @@ function Services() {
     [IOTServices.dist_service]: { title: 'Distance', description: 'Distance between objects' },
   };
 
+  console.log(pageServicesState)
+
   const handleToggleChange = async (serviceType, value) => {
     if (isLoading[serviceType] || !systemState) return;
 
@@ -35,15 +43,20 @@ function Services() {
     setIsLoading((prev) => ({ ...prev, [serviceType]: true }));
     setError(null);
 
-    const prevState = { ...servicesState };
-    const newServicesState = { ...servicesState, [serviceType]: newValue };
-
+    const prevState = { ...pageServicesState };
+    const newServicesState = { ...pageServicesState, [serviceType]: newValue };
+    
+    const formData = {
+      service_type: serviceType,
+      value: newValue,
+    }
+    console.log(formData);
     try {
       const responseData = await apiClient(
         'PATCH',
         `${import.meta.env.VITE_SERVER_URL}/iot/service`,
         {
-          body: JSON.stringify({ service_type: serviceType, value: newValue }),
+          body: JSON.stringify(formData),
         }
       );
 
@@ -63,7 +76,7 @@ function Services() {
 
   const renderServiceToggle = (serviceType) => {
     const displayInfo = serviceDisplayNames[serviceType];
-    console.log(`Rendering ${serviceType}, checked: ${servicesState[serviceType]}`);
+    // console.log(`Rendering ${serviceType}, checked: ${pageServicesState[serviceType]}`);
 
     return (
       <div key={serviceType} className={[styles.servicesToggle, 'form-check form-switch mb-3'].join(' ')}>
@@ -85,8 +98,8 @@ function Services() {
             type="checkbox"
             className="form-check-input"
             id={`${serviceType}Toggle`}
-            checked={servicesState[serviceType] === serviceModes.on}
-            onChange={() => handleToggleChange(serviceType, servicesState[serviceType] !== serviceModes.on)}
+            checked={pageServicesState[serviceType] === 'on'}
+            onChange={() => handleToggleChange(serviceType, pageServicesState[serviceType] !== 'on')}
             disabled={isLoading[serviceType] || !systemState}
           />
         </div>

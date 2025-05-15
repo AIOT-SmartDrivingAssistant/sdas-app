@@ -8,7 +8,7 @@ import apiClient from '../../../services/APIClient.jsx';
 
 const SideBar = () => {
   const navigate = useNavigate();
-  const { systemState, setSystemState, clearUserContext } = useUserContext();
+  const { systemState, setSystemState, setServicesState, clearUserContext } = useUserContext();
 
   const handleLogout = async (e) => {
     e.preventDefault();
@@ -32,6 +32,16 @@ const SideBar = () => {
       const responseData = await apiClient('POST', `${import.meta.env.VITE_SERVER_URL}/iot/${command}`);
 
       setSystemState(value);
+      setServicesState(prev => {
+        return {
+          ...prev,
+          ...Object.fromEntries(
+        Object.keys(prev)
+          .filter(key => key?.includes('service'))
+          .map(key => [key, value ? 'on' : 'off'])
+          ),
+        };
+      });
 
       console.log(`System turned ${command}:`, responseData);
       toast.success(`System turned ${command} successfully!`);

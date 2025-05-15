@@ -14,6 +14,7 @@ const Home = () => {
     setUserData,
     userAvatar,
     setUserAvatar,
+    systemState,
     servicesState,
     setServicesState,
     sensorData,
@@ -118,7 +119,7 @@ const Home = () => {
   // useEffect for continuously fetching sensor data 
   useEffect(() => {
     const handleGetSensorData = async () => {
-      if (!servicesState) return;
+      if (!systemState) return;
 
       setErrors((prev) => ({
         ...prev,
@@ -226,7 +227,7 @@ const Home = () => {
       clearInterval(intervalId);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [systemState])
 
   const getDistanceWarning = (distance) => {
     if (distance < 50) return { class: 'bg-danger', message: 'Danger' };
@@ -352,39 +353,9 @@ const Home = () => {
     }
   };
 
-  const handleSendMockNotificationRequest = async (retry = true) => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/app/mock_notification`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (response.status === 401 && retry) {
-        const refreshed = await handleRefreshToken(navigate, clearUserContext);
-        if (refreshed) {
-          return handleSendMockNotificationRequest(false);
-        }
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to send mock notification');
-      }
-
-      console.log('Mock notification sent:', await response.json());
-    } catch (error) {
-      console.error('Error sending mock notification:', error);
-    }
-  };
-
   return (
     <div className="container-fluid p-0">
       {errors.general && <div className="alert alert-danger">{errors.general}</div>}
-
-      <button onClick={() => handleSendMockNotificationRequest()}>
-        Mock Notification
-      </button>
 
       <div className="row g-3 mb-3">
         {servicesState?.air_cond_service !== undefined && (
