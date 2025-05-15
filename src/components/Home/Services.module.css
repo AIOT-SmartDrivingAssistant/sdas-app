@@ -36,13 +36,6 @@
     flex-grow: 1;
 }
 
-.servicesInputNumberWrapper {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-  flex-wrap: wrap;
-}
 
 .servicesInputNumberLabel {
   font-size: 1rem;
@@ -69,4 +62,16 @@
 .servicesInputNumberBox:focus {
   border-color: #0a2b6c;
   box-shadow: 0 0 0 2px rgba(10, 43, 108, 0.1);
+}
+
+.servicesInputNumberWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.servicesInputNumberGroup {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }

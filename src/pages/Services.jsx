@@ -35,10 +35,10 @@ function Services() {
 
 
   const serviceDisplayNames = {
-    [IOTServices.air_cond_service]: { title: 'Air Conditioning', description: 'Automatic air conditioning', thresholds:['Temperature','Humidty']},
-    [IOTServices.drowsiness_service]: { title: 'Driver Monitoring', description: "Check the driver's status", thresholds:['Drowsiness'] },
-    [IOTServices.headlight_service]: { title: 'Smart Headlights', description: "Adjust light when it's dark", thresholds:['Lux'] },
-    [IOTServices.dist_service]: { title: 'Distance', description: 'Distance between objects', thresholds:['Distance'] },
+    [IOTServices.air_cond_service]: { title: 'Air Conditioning', description: 'Automatic air conditioning', thresholds:['Temperature Threshold','Humidity Threshold']},
+    [IOTServices.drowsiness_service]: { title: 'Driver Monitoring', description: "Check the driver's status", thresholds:['Drowsiness Threshold'] },
+    [IOTServices.headlight_service]: { title: 'Smart Headlights', description: "Adjust light when it's dark", thresholds:['Lux Threshold'] },
+    [IOTServices.dist_service]: { title: 'Distance', description: 'Distance between objects', thresholds:['Distance Threshold'] },
   };
 
   console.log(pageServicesState)
@@ -136,25 +136,25 @@ function Services() {
       }
   };
 
-    return (
-      <div className={styles.servicesInputNumberWrapper}>
-        {thresholds.map((th) => (
-          <React.Fragment key={th}>
-            <span className={styles.servicesInputNumberLabel}>{th}</span>
-            <input
-              className={styles.servicesInputNumberBox}
-              type="number"
-              value={thresholdValues[serviceType]?.[th] || ''}
-              onChange={(e) => handleThresholdChange(th, e)}
-              onBlur={(e) => handleThresholdBlur(th, e)}
-              placeholder="0"
-              min={0}
-              max={999}
-            />
-          </React.Fragment>
-        ))}
-      </div>
-    );
+      return (
+        <div className={styles.servicesInputNumberWrapper}>
+          {thresholds.map((th) => (
+            <div key={th} className={styles.servicesInputNumberGroup}>
+              <span className={styles.servicesInputNumberLabel}>{th}</span>
+              <input
+                className={styles.servicesInputNumberBox}
+                type="number"
+                value={thresholdValues[serviceType]?.[th] || ''}
+                onChange={(e) => handleThresholdChange(th, e)}
+                onBlur={(e) => handleThresholdBlur(th, e)}
+                placeholder="0"
+                min={0}
+                max={999}
+              />
+            </div>
+          ))}
+        </div>
+      );
   };
 
   const renderServiceToggle = (serviceType) => {
