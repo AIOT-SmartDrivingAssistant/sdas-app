@@ -1,6 +1,7 @@
+// Home.jsx
 import 'react-range-slider-input/dist/style.css';
 import styles from '../components/Home/Home.module.css';
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserContext } from '../hooks/UserContext.jsx';
 import { SensorTypes } from '../utils/CommonFields.jsx';
@@ -19,26 +20,14 @@ const Home = () => {
     setServicesState,
     sensorData,
     setSensorData,
-    addActionToHistory,
+    addActionHistory, // Đã sửa từ addActionToHistory thành addActionHistory
     initializeApp,
     clearUserContext,
+    isFirstLoad,
+    setIsFirstLoad,
   } = useUserContext();
 
-  const [isFirstLoad, setIsFirstLoad] = useState(true);
-
-  useEffect(() => {
-    const handleInitialize = async () => {
-      await initializeApp();
-      setIsFirstLoad(false);
-    }
-
-    if (isFirstLoad) handleInitialize();
-
-    return () => {};
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const [data, setData] = useState({
+  const [data, setData] = React.useState({
     distance: 0,
     temperature: 0,
     humidity: 0,
@@ -53,20 +42,27 @@ const Home = () => {
     },
   });
 
-  const [loading, setLoading] = useState({
+  const [loading, setLoading] = React.useState({
     air_cond_service: false,
     dist_service: false,
     headlight_service: false,
     drowsiness_service: false,
   });
 
-  const [errors, setErrors] = useState({
+  const [errors, setErrors] = React.useState({
     general: null,
     air_cond_service: null,
     dist_service: null,
     headlight_service: null,
     drowsiness_service: null,
   });
+
+  // useEffect for initializing app
+  useEffect(() => {
+    if (isFirstLoad) {
+      initializeApp();
+    }
+  }, [isFirstLoad, initializeApp]);
 
   // useEffect for re-fetching Home page needed data
   useEffect(() => {
@@ -78,29 +74,26 @@ const Home = () => {
       try {
         const _userData = await apiClient('GET', `${import.meta.env.VITE_SERVER_URL}/user/`);
         setUserData(_userData);
-      }
-      catch (error) {
+      } catch (error) {
         console.error('Fail to get user data: ', error);
       }
-    }
+    };
     const handleGetUserAvatar = async () => {
       try {
         const _userAvatar = await apiClient('GET', `${import.meta.env.VITE_SERVER_URL}/user/avatar`);
         setUserAvatar(_userAvatar);
-      }
-      catch (error) {
+      } catch (error) {
         console.error('Fail to get user avatar: ', error);
       }
-    }
+    };
     const handleGetServicesState = async () => {
       try {
         const _servicesStatus = await apiClient('GET', `${import.meta.env.VITE_SERVER_URL}/app/services_status`);
         setServicesState(_servicesStatus);
-      }
-      catch (error) {
+      } catch (error) {
         console.error('Fail to get services state: ', error);
       }
-    }
+    };
 
     if (!userData) {
       handleGetUserData();
@@ -111,12 +104,9 @@ const Home = () => {
     if (!servicesState) {
       handleGetServicesState();
     }
+  }, [isFirstLoad, userData, userAvatar, servicesState, setUserData, setUserAvatar, setServicesState]);
 
-    return () => {};
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // useEffect for continuously fetching sensor data 
+  // useEffect for continuously fetching sensor data
   useEffect(() => {
     const handleGetSensorData = async () => {
       if (!systemState) return;
@@ -165,7 +155,7 @@ const Home = () => {
         const _sensorData = await apiClient(
           'GET',
           `${import.meta.env.VITE_SERVER_URL}/app/sensor_data?sensor_types=${sensorTypesParam}`
-        )
+        );
 
         const sensorList = _sensorData.slice(0, 10);
         const newData = { ...data };
@@ -282,7 +272,7 @@ const Home = () => {
           temperature: constrainedValue,
         },
       }));
-      addActionToHistory('service_toggle', {
+      addActionHistory({
         serviceType: 'air_cond_temp',
         value: constrainedValue,
         status: 'success',
@@ -293,7 +283,7 @@ const Home = () => {
         ...prev,
         air_cond_service: 'Failed to update temperature.',
       }));
-      addActionToHistory('service_toggle', {
+      addActionHistory({
         serviceType: 'air_cond_temp',
         value: constrainedValue,
         status: 'failed',

@@ -13,6 +13,8 @@ const Header = () => {
     switch (pathname) {
       case '/home':
         return 'Home';
+      case '/dashboard':
+        return 'Dashboard';
       case '/services':
         return 'Services';
       case '/profile':
