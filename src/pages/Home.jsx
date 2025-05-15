@@ -43,7 +43,7 @@ const Home = () => {
 
   const [loading, setLoading] = React.useState({
     air_cond_service: false,
-    dist_service: false,
+    distance_service: false,
     headlight_service: false,
     drowsiness_service: false,
   });
@@ -51,7 +51,7 @@ const Home = () => {
   const [errors, setErrors] = React.useState({
     general: null,
     air_cond_service: null,
-    dist_service: null,
+    distance_service: null,
     headlight_service: null,
     drowsiness_service: null,
   });
@@ -113,14 +113,14 @@ const Home = () => {
       setErrors((prev) => ({
         ...prev,
         air_cond_service: null,
-        dist_service: null,
+        distance_service: null,
         headlight_service: null,
         drowsiness_service: null,
       }));
 
       setLoading({
         air_cond_service: servicesState?.air_cond_service === 'on',
-        dist_service: servicesState?.dist_service === 'on',
+        distance_service: servicesState?.distance_service === 'on',
         headlight_service: servicesState?.headlight_service === 'on',
         drowsiness_service: servicesState?.drowsiness_service === 'on',
       });
@@ -130,7 +130,7 @@ const Home = () => {
         const serviceToSensors = {
           air_cond_service: [SensorTypes.temp, SensorTypes.humid],
           headlight_service: [SensorTypes.lux],
-          dist_service: [SensorTypes.dist],
+          distance_service: [SensorTypes.dis],
         };
 
         Object.keys(serviceToSensors).forEach((service) => {
@@ -142,7 +142,7 @@ const Home = () => {
         if (activeSensorTypes.length === 0) {
           setLoading({
             air_cond_service: false,
-            dist_service: false,
+            distance_service: false,
             headlight_service: false,
             drowsiness_service: false,
           });
@@ -173,7 +173,7 @@ const Home = () => {
               newData.humidity = value;
               newSensorData.humidity = value;
               break;
-            case SensorTypes.dist:
+            case SensorTypes.dis:
               newData.distance = value;
               newSensorData.distance = value;
               break;
@@ -195,14 +195,14 @@ const Home = () => {
         setErrors((prev) => ({
           ...prev,
           air_cond_service: servicesState.air_cond_service === 'on' ? errorMessage : null,
-          dist_service: servicesState.dist_service === 'on' ? errorMessage : null,
+          distance_service: servicesState.distance_service === 'on' ? errorMessage : null,
           headlight_service: servicesState.headlight_service === 'on' ? errorMessage : null,
         }));
         return false;
       } finally {
         setLoading({
           air_cond_service: false,
-          dist_service: false,
+          distance_service: false,
           headlight_service: false,
           drowsiness_service: false,
         });
