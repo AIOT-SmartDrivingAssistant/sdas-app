@@ -12,9 +12,8 @@ const processQueue = (error, success) => {
     failedQueue = [];
 };
 
-async function apiClient(method, url, options = {}, manualHeaders = false) {
+async function apiClient(method, url, options = {}, isBlob = false) {
     const headers = {
-        'Content-Type': 'application/json',
         ...(options.headers || {}),
     };
 
@@ -26,14 +25,10 @@ async function apiClient(method, url, options = {}, manualHeaders = false) {
         ...options,
     };
 
-    if (manualHeaders) {
-        delete fetchOptions.headers;
-    }
-
     // eslint-disable-next-line no-useless-catch
     try {
         const response = await fetch(url, fetchOptions);
-        const data = await response.json();
+        const data = isBlob ? await response.blob() : await response.json();
 
         if (!response.ok) {
             if (
