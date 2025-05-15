@@ -3,7 +3,7 @@
   padding: 0;
   margin: 0;
 }
-.list li{
+.list li {
   font-weight: 600;
   display: flex;
 }
@@ -25,7 +25,7 @@
 }
 
 .sidebarLink {
-  color: #B1B1B1;
+  color: #b1b1b1;
   text-decoration: none;
   position: relative;
   padding: 1rem;
@@ -68,4 +68,33 @@
   display: inline-block;
   width: 2rem;
   margin-right: 1rem;
+}
+
+.systemToggle {
+  cursor: pointer;
+}
+
+.systemToggle:hover {
+  cursor: pointer;
+}
+
+.systemToggle .form-check-input {
+  cursor: pointer;
+  width: auto;
+}
+
+.systemToggle .form-switch {
+  padding-left: 0;
+}
+
+.systemToggle .form-check {
+  padding-left: 0;
+}
+
+.systemToggle > label {
+  cursor: pointer;
+}
+
+.systemToggle > div {
+  cursor: pointer;
 }

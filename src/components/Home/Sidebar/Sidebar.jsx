@@ -1,56 +1,131 @@
 import styles from './Sidebar.module.css';
-import { NavLink, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import Robot from '../../../assets/robot.svg';
+
+import { NavLink, useNavigate } from 'react-router-dom';
+
 import toast from 'react-hot-toast';
 
+import apiClient from '../../../services/APIClient.jsx';
 import { useUserContext } from '../../../hooks/UserContext.jsx';
+
+import { IOTFields } from '../../../utils/CommonFields.jsx'
+import { ErrorMessages, SuccessMessages } from '../../../utils/CommonMessages.jsx';
+import { useState } from 'react';
 
 const SideBar = () => {
   const navigate = useNavigate();
+  const { servicesStatus, setServicesStatus, clearUserContext } = useUserContext();
 
-  const { clearUserContext } = useUserContext()
+  const [ systemStatus, setSystemStatus ] = useState(servicesStatus?.system_status);
 
   const handleLogout = async (e) => {
     e.preventDefault();
-
     try {
-      const logoutResponse = await fetch(`${import.meta.env.VITE_SERVER_URL}/auth/logout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
+      const logoutResponse = await apiClient(
+        'POST',
+        `${import.meta.env.VITE_SERVER_URL}/auth/logout`,
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      const logoutResponseData = await logoutResponse.json();
-      console.log(`Logout response:`, logoutResponseData);
-
-      if (!logoutResponse.ok) {
-        throw new Error(`Internal server error`);
-      }
+      console.log(`handleLogout's response:`, logoutResponse);
 
       clearUserContext();
-      toast.success(`Logout successful!`);
+      toast.success(SuccessMessages.auth.logout);
       navigate('/');
+    } catch (error) {
+      console.log(`handleLogout's error:`, error);
+      toast.error(`${ErrorMessages.auth.logout}${error.message}`);
     }
-    catch (error) {
-      console.log(`Logout error:`, error);
-      toast.error(error.message);
+  };
+
+  const handleSystemToggle = async (value) => {
+    const command = value ? IOTFields.state.on : IOTFields.state.off;
+
+    try {
+      const responseData = await apiClient(
+        'POST',
+        `${import.meta.env.VITE_SERVER_URL}/iot/${command}`,
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      setServicesStatus(prev => {
+        return {
+          ...prev,
+          ...Object.fromEntries(
+              Object.keys(prev)
+                .filter(key => key?.includes(IOTFields.target.service) || key?.includes(IOTFields.target.system))
+                .map(key => [key, value ? IOTFields.state.on : IOTFields.state.off])
+          ),
+        };
+      });
+
+      console.log(`handleSystemToggle's response:`, responseData);
+      toast.success(value ? SuccessMessages.controlIot.systemOn : SuccessMessages.controlIot.systemOff);
+    } catch (error) {
+      console.log('servicesStatus.system_status', servicesStatus?.system_status);
+      setSystemStatus(servicesStatus?.system_status);
+      console.error(`handleSystemToggle's error:`, error);
+      toast.error(`${ErrorMessages.iot.toggle}${error.message}`)
     }
   };
 
   return (
     <nav className={styles.wrapper}>
       <div className={styles.logo}>
-        <img className={styles.logoImg} src={Robot} alt=""></img>
+        <img className={styles.logoImg} src={Robot} alt="" />
         <div className={styles.SDA}>SDA</div>
       </div>
       <ul className={styles.list}>
+        <li>
+          <div className={clsx(styles.sidebarLink, styles.systemToggle)}>
+            <label className="form-check-label" htmlFor="switchCheckDefault">
+              <div className="d-flex flex-wrap justify-content-flex-start justify-content-md-center">
+                <div className={styles.icon}>
+                  <i className="fa-solid fa-power-off"></i>
+                </div>
+                <label className="form-check-label" htmlFor="switchCheckDefault">
+                  System
+                </label>
+                <div className="form-check form-switch" style={{ paddingLeft: '0.8rem' }}>
+                  <input
+                    className="form-check-input ms-auto"
+                    type="checkbox"
+                    checked={systemStatus === IOTFields.state.on}
+                    role="switch"
+                    id="switchCheckDefault"
+                    onChange={() => handleSystemToggle(servicesStatus?.system_status === IOTFields.state.on ? false : true)}
+                  />
+                </div>
+              </div>
+            </label>
+          </div>
+        </li>
         <li>
           <NavLink to="/home" className={({ isActive }) => clsx(styles.sidebarLink, isActive ? styles.active : '')}>
             <div className={styles.icon}>
               <i className="fa-solid fa-house"></i>
             </div>
             Home
+          </NavLink>
+        </li>
+        <li>
+          <NavLink
+            to="/dashboard"
+            className={({ isActive }) => clsx(styles.sidebarLink, isActive ? styles.active : '')}
+          >
+            <div className={styles.icon}>
+              <i className="fa-solid fa-gauge"></i>
+            </div>
+            DashBoard
           </NavLink>
         </li>
         <li>

@@ -1,162 +1,80 @@
-import React, { useState } from 'react';
 import styles from '../components/Home/Services.module.css';
+
+import React, { useEffect, useState } from 'react';
+
+import toast from 'react-hot-toast';
+
+import apiClient from '../services/APIClient.jsx';
 import { useUserContext } from '../hooks/UserContext.jsx';
-import { IOTServices } from '../utils/CommonFields.jsx';
+
+import { IOTFields } from '../utils/CommonFields.jsx';
+import { SuccessMessages, ErrorMessages } from '../utils/CommonMessages.jsx';
 
 function Services() {
-  const { servicesState, setServicesState, addActionToHistory } = useUserContext();
+  const { servicesStatus, setServicesStatus } = useUserContext();
   const [isLoading, setIsLoading] = useState({
     air_cond_service: false,
     drowsiness_service: false,
     headlight_service: false,
     dist_service: false,
-    system: false,
   });
   const [error, setError] = useState(null);
 
-  const serviceModes = {
-    on: 'on',
-    off: 'off',
-  };
+  const [ pageServicesState, setPageServicesState ] = useState(servicesStatus);
+
+  useEffect(() => {
+    setPageServicesState(servicesStatus);
+  }, [pageServicesState, servicesStatus])
 
   const serviceDisplayNames = {
-    [IOTServices.air_cond_service]: { title: 'Air Conditioning', description: 'Automatic air conditioning' },
-    [IOTServices.drowsiness_service]: { title: 'Driver Monitoring', description: "Check the driver's status" },
-    [IOTServices.headlight_service]: { title: 'Smart Headlights', description: "Adjust light when it's dark" },
-    [IOTServices.dist_service]: { title: 'Distance', description: 'Distance between objects' },
+    [IOTFields.services.air_cond_service]: { title: 'Air Conditioning', description: 'Automatic air conditioning' },
+    [IOTFields.services.drowsiness_service]: { title: 'Driver Monitoring', description: "Check the driver's status" },
+    [IOTFields.services.headlight_service]: { title: 'Smart Headlights', description: "Adjust light when it's dark" },
+    [IOTFields.services.dist_service]: { title: 'Distance', description: 'Distance between objects' },
   };
 
-  const isSystemOn = Object.values(servicesState).some((state) => state === serviceModes.on);
-
   const handleToggleChange = async (serviceType, value) => {
-    if (isLoading[serviceType]) return;
+    if (isLoading[serviceType] || !servicesStatus?.system_status) return;
 
-    const newValue = value ? serviceModes.on : serviceModes.off;
+    const newValue = value ? IOTFields.state.on : IOTFields.state.off;
     console.log(`Toggling ${serviceType} to ${newValue}`);
     setIsLoading((prev) => ({ ...prev, [serviceType]: true }));
     setError(null);
 
-    const prevState = { ...servicesState };
-    const newServicesState = { ...servicesState, [serviceType]: newValue };
-
+    const prevState = { ...pageServicesState };
+    const newServicesStatus = { ...pageServicesState, [serviceType]: newValue };
+    
+    const formData = {
+      service_type: serviceType,
+      value: newValue,
+    }
     try {
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/iot/service`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ service_type: serviceType, value: newValue }),
-      });
+      const responseData = await apiClient(
+        'PATCH',
+        `${import.meta.env.VITE_SERVER_URL}/iot/service`,
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData),
+        }
+      );
+      console.log(`handleToggleChange's response:`, responseData);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || errorData.detail || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('Service response:', data);
-
-      setServicesState(newServicesState);
-      console.log(`Service ${serviceType} updated to ${newValue}`);
-      addActionToHistory('service_toggle', {
-        serviceType,
-        value: newValue,
-        status: 'success',
-      });
+      setServicesStatus(newServicesStatus);
+      toast.success(SuccessMessages.controlIot.controlService);
     } catch (error) {
-      console.error('Error updating service:', {
-        message: error.message,
-        stack: error.stack,
-      });
-      const errorMessage =
-        error.message.includes('401')
-          ? 'Unauthorized access. Please log in again.'
-          : error.message.includes('422')
-          ? 'Invalid request. Please try again.'
-          : error.message.includes('429')
-          ? 'Too many requests. Please try again later.'
-          : 'Failed to update service. Please try again later.';
-      setError(errorMessage);
-      setServicesState(prevState);
-      addActionToHistory('service_toggle', {
-        serviceType,
-        value: newValue,
-        status: 'failed',
-        error: errorMessage,
-      });
+      setError(error);
+      setServicesStatus(prevState);
+      toast.error(`${ErrorMessages.iot.controlService}${error}`);
     } finally {
       setIsLoading((prev) => ({ ...prev, [serviceType]: false }));
     }
   };
 
-  const handleSystemToggle = async (value) => {
-    if (isLoading['system']) return;
-
-    const command = value ? 'on' : 'off';
-    console.log(`Turning ${command} the system`);
-    setIsLoading((prev) => ({ ...prev, system: true }));
-    setError(null);
-
-    const prevState = { ...servicesState };
-    const newServicesState = Object.fromEntries(
-      Object.keys(servicesState).map((key) => [key, value ? serviceModes.on : serviceModes.off])
-    );
-
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'}/iot/${command}`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || errorData.detail || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log(`System turned ${command}:`, data);
-
-      setServicesState(newServicesState);
-      addActionToHistory('system_toggle', {
-        command,
-        status: 'success',
-      });
-    } catch (error) {
-      console.error(`Error turning ${command} the system:`, {
-        message: error.message,
-        stack: error.stack,
-      });
-      const errorMessage =
-        error.message.includes('401')
-          ? 'Unauthorized access. Please log in again.'
-          : error.message.includes('400')
-          ? 'Invalid request. Please try again.'
-          : error.message.includes('429')
-          ? 'Too many requests. Please try again later.'
-          : error.name === 'AbortError'
-          ? 'Request timed out. Please try again.'
-          : 'Failed to update system state. Please try again later.';
-      setError(errorMessage);
-      setServicesState(prevState);
-      addActionToHistory('system_toggle', {
-        command,
-        status: 'failed',
-        error: errorMessage,
-      });
-    } finally {
-      setIsLoading((prev) => ({ ...prev, system: false }));
-    }
-  };
-
   const renderServiceToggle = (serviceType) => {
     const displayInfo = serviceDisplayNames[serviceType];
-    console.log(`Rendering ${serviceType}, checked: ${servicesState[serviceType]}`);
+    // console.log(`Rendering ${serviceType}, checked: ${pageServicesState[serviceType]}`);
 
     return (
       <div key={serviceType} className={[styles.servicesToggle, 'form-check form-switch mb-3'].join(' ')}>
@@ -178,16 +96,16 @@ function Services() {
             type="checkbox"
             className="form-check-input"
             id={`${serviceType}Toggle`}
-            checked={servicesState[serviceType] === serviceModes.on}
-            onChange={() => handleToggleChange(serviceType, servicesState[serviceType] !== serviceModes.on)}
-            disabled={isLoading[serviceType] || isLoading['system']}
+            checked={pageServicesState[serviceType] === 'on'}
+            onChange={() => handleToggleChange(serviceType, pageServicesState[serviceType] !== IOTFields.state.on)}
+            disabled={isLoading[serviceType] || !servicesStatus?.system_status}
           />
         </div>
       </div>
     );
   };
 
-  const serviceTypes = Object.keys(IOTServices);
+  const serviceTypes = Object.keys(IOTFields.services);
   const servicesPerColumn = Math.ceil(serviceTypes.length / 4);
   const columns = Array.from({ length: 4 }, (_, colIndex) =>
     serviceTypes.slice(colIndex * servicesPerColumn, (colIndex + 1) * servicesPerColumn)
@@ -202,31 +120,11 @@ function Services() {
         </div>
       )}
 
-      <div className={[styles.servicesToggle, 'form-check form-switch mb-4'].join(' ')}>
-        <label
-          className={[styles.servicesToggleLabel, 'form-check-label'].join(' ')}
-          role="switch"
-          htmlFor="systemToggle"
-        >
-          <h4 className={styles.servicesToggleHeader}>System Control</h4>
-          <div className={styles.servicesToggleText}>Turn the entire system on or off</div>
-        </label>
-        <div className="d-flex align-items-center">
-          {isLoading['system'] && (
-            <div className="spinner-border spinner-border-sm me-2" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-          )}
-          <input
-            type="checkbox"
-            className="form-check-input"
-            id="systemToggle"
-            checked={isSystemOn}
-            onChange={() => handleSystemToggle(!isSystemOn)}
-            disabled={isLoading['system']}
-          />
+      {servicesStatus?.system_status !== IOTFields.state.on && (
+        <div className="alert alert-warning" role="alert">
+          System is currently off. Please turn on the system in the sidebar to interact with services.
         </div>
-      </div>
+      )}
 
       <div className="row">
         {columns.map((columnServices, index) => (

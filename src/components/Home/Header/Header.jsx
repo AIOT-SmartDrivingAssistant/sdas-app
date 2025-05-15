@@ -1,16 +1,20 @@
 import { useLocation } from 'react-router-dom';
+import { useUserContext } from '../../../hooks/UserContext.jsx';
 import styles from './Header.module.css';
 import Setting from '../../../assets/images/Setting.png';
 import Notification from '../../../assets/images/Notification.png';
-import Avatar from '../../../assets/images/avt.jpg';
+import defaultAvatar from '../../../assets/images/default_avatar.png';
+
 const Header = () => {
+  const { userAvatar } = useUserContext();
   const location = useLocation();
 
-  // Hàm để xác định tiêu đề dựa trên đường dẫn
   const getPageTitle = (pathname) => {
     switch (pathname) {
       case '/home':
         return 'Home';
+      case '/dashboard':
+        return 'Dashboard';
       case '/services':
         return 'Services';
       case '/profile':
@@ -18,19 +22,19 @@ const Header = () => {
       case '/history':
         return 'History';
       default:
-        return 'Home'; // Mặc định nếu không khớp
+        return 'Home';
     }
   };
 
   const pageTitle = getPageTitle(location.pathname);
+  const avatarSrc = userAvatar || defaultAvatar;
+
   return (
     <header className={styles.wrapper}>
       <div className={styles.content}>
         <div className={styles.pageTitle}>{pageTitle}</div>
         <div className={styles.action}>
-          <img src={Setting} alt="Setting"></img>
-          <img src={Notification} alt="Notification"></img>
-          <img src={Avatar} alt="Avatar" style={{ width: '50px', height: '50px', borderRadius: '100%' }}></img>
+          <img src={avatarSrc} alt="Avatar" style={{ width: '50px', height: '50px', borderRadius: '100%' }} />
         </div>
       </div>
     </header>

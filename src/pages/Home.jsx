@@ -1,45 +1,55 @@
+import defaultAvatar from '../assets/images/default_avatar.png';
 import 'react-range-slider-input/dist/style.css';
 import styles from '../components/Home/Home.module.css';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 
+import toast from 'react-hot-toast';
+
+import apiClient from '../services/APIClient.jsx';
 import { useUserContext } from '../hooks/UserContext.jsx';
-import { SensorTypes } from '../utils/CommonFields.jsx';
+
+import { IOTFields } from '../utils/CommonFields.jsx';
+import { ErrorMessages, SuccessMessages } from '../utils/CommonMessages.jsx';
 
 const Home = () => {
   const {
+    userData,
     setUserData,
+    userAvatar,
     setUserAvatar,
-    servicesState,
+    servicesStatus,
     setServicesStatus,
-    sensorData, 
-    setSensorData, 
-    addActionToHistory,
+    sensorsData,
+    setSensorsData,
+
+    initializeApp,
+    isFirstLoad,
   } = useUserContext();
 
-  const [data, setData] = useState({
+  const [data, setData] = React.useState({
     distance: 0,
     temperature: 0,
     humidity: 0,
     lightLevel: 0,
     incline: 0,
-    headlightsMode: 'Manual',
-    headlightsBrightness: 0,
-    driverStatus: 'Alert',
-    airConditioner: {
-      status: 'Manual',
-      temperature: 1, // Giá trị mặc định trong khoảng 1-100
+    headlightMode: IOTFields.mode.manual,
+    headlightBrightness: 0,
+    driverStatus: IOTFields.state.alert,
+    airCond: {
+      status: IOTFields.state.manual,
+      temperature: 1,
     },
   });
 
-  const [loading, setLoading] = useState({
+  const [loading, setLoading] = React.useState({
     air_cond_service: false,
     dist_service: false,
     headlight_service: false,
     drowsiness_service: false,
   });
 
-  const [errors, setErrors] = useState({
+  const [errors, setErrors] = React.useState({
     general: null,
     air_cond_service: null,
     dist_service: null,
@@ -47,241 +57,194 @@ const Home = () => {
     drowsiness_service: null,
   });
 
-  const [isInitialized, setIsInitialized] = useState(false);
-
-  const handleGetUserData = async () => {
-    try {
-      const [getUserDataResponse, getUserAvatarResponse] = await Promise.all([
-        fetch(`${import.meta.env.VITE_SERVER_URL}/user/`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        }),
-        fetch(`${import.meta.env.VITE_SERVER_URL}/user/avatar`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        })
-      ]);
-
-      let _userData = null;
-      let _userAvatar = null;
-      let userDataError = null;
-      let userAvatarError = null;
-
-      // Handle user data response
-      try {
-        _userData = await getUserDataResponse.json();
-        if (!getUserDataResponse.ok) {
-          userDataError = _userData.message || `Fail to fetch user's data`;
-          _userData = null;
-        }
-      } catch (e) {
-        console.error(e);
-        userDataError = `Fail to parse user data`;
-        _userData = null;
-      }
-
-      // Handle user avatar response
-      if (getUserAvatarResponse.ok) {
-        try {
-          _userAvatar = await getUserAvatarResponse.blob();
-        } catch (e) {
-          console.error(e);
-          userAvatarError = `Fail to parse user avatar`;
-          _userAvatar = null;
-        }
-      } else {
-        try {
-          const avatarErrorData = await getUserAvatarResponse.json();
-          userAvatarError = avatarErrorData.message || `Fail to fetch user's avatar`;
-        } catch (e) {
-          console.error(e);
-          userAvatarError = `Fail to fetch user's avatar`;
-        }
-        _userAvatar = null;
-      }
-
-      userDataError? console.error(userDataError) : console.log(`User's data: `, _userData);
-      userAvatarError? console.error(userAvatarError) : console.log(`User's avatar: `, _userAvatar);
-
-      setUserData(_userData);
-      setUserAvatar(_userAvatar);
-
-      if (userDataError || userAvatarError) {
-        throw new Error([userDataError, userAvatarError].filter(Boolean).join(' | '));
-      }
-    }
-    catch (error) {
-      console.error(`Error at handleGetUserData: `, error);
-    }
-  };
-
-  const handleGetServicesStatus = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SERVER_URL}/app/services_status`,
-        {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        },
-      );
-
-      const responseData = await response.json();
-
-      if (!response.ok) {
-        console.error(responseData);
-        throw new Error(responseData.message);
-      }
-
-      setServicesStatus(responseData);
-    }
-    catch (error) {
-      console.error(error);
-    }
-  }
-
-  const handleGetSensorData = async () => {
-    setErrors((prev) => ({
-      ...prev,
-      air_cond_service: null,
-      dist_service: null,
-      headlight_service: null,
-      drowsiness_service: null,
-    }));
-
-    setLoading({
-      air_cond_service: servicesState.air_cond_service === 'on',
-      dist_service: servicesState.dist_service === 'on',
-      headlight_service: servicesState.headlight_service === 'on',
-      drowsiness_service: servicesState.drowsiness_service === 'on',
-    });
-
-    try {
-      const activeSensorTypes = [];
-      const serviceToSensors = {
-        air_cond_service: [SensorTypes.temp, SensorTypes.humid],
-        headlight_service: [SensorTypes.lux],
-        dist_service: [SensorTypes.dist],
-      };
-
-      Object.keys(serviceToSensors).forEach((service) => {
-        if (servicesState[service] === 'on') {
-          activeSensorTypes.push(...serviceToSensors[service]);
-        }
-      });
-
-      if (activeSensorTypes.length === 0) {
-        setLoading({
-          air_cond_service: false,
-          dist_service: false,
-          headlight_service: false,
-          drowsiness_service: false,
-        });
-        return true;
-      }
-
-      const sensorTypesParam = activeSensorTypes.join(',');
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SERVER_URL}/app/sensor_data?sensor_types=${sensorTypesParam}`,
-        {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          signal: controller.signal,
-        },
-      );
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.detail || errorData.message}`);
-      }
-
-      const responseData = await response.json();
-      const sensorList = responseData.slice(0, 10);
-      const newData = { ...data };
-      const newSensorData = { ...sensorData };
-
-      sensorList.forEach((sensor) => {
-        const value = parseFloat(sensor.value);
-        let type = sensor.sensor_type.toString().toLowerCase().replace(/\s+|\W+/g, '');
-
-        switch (type) {
-          case SensorTypes.temp:
-            newData.temperature = value;
-            newSensorData.temperature = value;
-            break;
-          case SensorTypes.humid:
-            newData.humidity = value;
-            newSensorData.humidity = value;
-            break;
-          case SensorTypes.dist:
-            newData.distance = value;
-            newSensorData.distance = value;
-            break;
-          case SensorTypes.lux:
-            newData.lightLevel = value;
-            newSensorData.lightLevel = value;
-            break;
-          default:
-            break;
-        }
-      });
-
-      setData(newData);
-      setSensorData(newSensorData);
-      return true;
-    } catch (error) {
-      console.error('Error fetching sensor data:', error);
-      const errorMessage = error.message.includes('401')
-        ? 'Unauthorized access. Please login again.'
-        : error.message.includes('500')
-        ? 'Server error. Please try again later.'
-        : error.name === 'AbortError'
-        ? 'Request timed out. Please try again.'
-        : 'Failed to fetch sensor data.';
-      setErrors((prev) => ({
-        ...prev,
-        air_cond_service: servicesState.air_cond_service === 'on' ? errorMessage : null,
-        dist_service: servicesState.dist_service === 'on' ? errorMessage : null,
-        headlight_service: servicesState.headlight_service === 'on' ? errorMessage : null,
-      }));
-      return false;
-    } finally {
-      setLoading({
-        air_cond_service: false,
-        dist_service: false,
-        headlight_service: false,
-        drowsiness_service: false,
-      });
-    }
-  };
-
+  // useEffect for initializing app
   useEffect(() => {
-    const runInitialize = async () => {
-      try {
-        setIsInitialized(true);
-        await handleGetServicesStatus();
-        const sensorSuccess = await handleGetSensorData();
-        if (!sensorSuccess) {
-          setErrors((prev) => ({ ...prev, general: 'Failed to fetch sensor data.' }));
-        }
+    if (isFirstLoad) {
+      initializeApp();
+    }
+  }, [isFirstLoad, initializeApp]);
 
-        handleGetUserData();
+  // useEffect for missing needed data for Home page
+  useEffect(() => {
+    if (isFirstLoad || (userData && userAvatar && servicesStatus)) {
+      return;
+    }
+
+    const handleGetUserData = async () => {
+      try {
+        const _userData = await apiClient(
+          'GET',
+          `${import.meta.env.VITE_SERVER_URL}/user/`,
+          {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        setUserData(_userData);
       } catch (error) {
-        console.error('Error in initialize:', error);
-        setErrors((prev) => ({ ...prev, general: 'Failed to initialize application: ' + error.message }));
+        console.error('Fail to get user data: ', error);
+      }
+    };
+    const handleGetUserAvatar = async () => {
+      try {
+        const _userAvatar = await apiClient(
+          'GET',
+          `${import.meta.env.VITE_SERVER_URL}/user/avatar`,
+          {
+            headers: {
+              'Content-Type': 'multipart/blob'
+            }
+          },
+          true
+        );
+        const reader = new FileReader();
+        reader.onloadend = () => setUserAvatar(reader.result);
+        reader.readAsDataURL(_userAvatar);
+      } catch (error) {
+        setUserAvatar(defaultAvatar);
+        console.error('Fail to get user avatar: ', error);
+      }
+    };
+    const handleGetServicesState = async () => {
+      try {
+        const _servicesStatus = await apiClient(
+          'GET',
+          `${import.meta.env.VITE_SERVER_URL}/app/services_status`,
+          {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        setServicesStatus(_servicesStatus);
+      } catch (error) {
+        console.error('Fail to get services state: ', error);
       }
     };
 
-    runInitialize();
+    if (!userData) {
+      handleGetUserData();
+    }
+    if (!userAvatar) {
+      handleGetUserAvatar();
+    }
+    if (!servicesStatus) {
+      handleGetServicesState();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // useEffect for continuously fetching sensor data
+  useEffect(() => {
+    const handleGetSensorData = async () => {
+      if (servicesStatus?.system_status !== IOTFields.state.on) return;
+
+      setErrors((prev) => ({
+        ...prev,
+        air_cond_service: null,
+        dist_service: null,
+        headlight_service: null,
+        drowsiness_service: null,
+      }));
+
+      // setLoading({
+      //   air_cond_service: servicesStatus?.air_cond_service === IOTFields.state.on,
+      //   dist_service: servicesStatus?.dist_service === IOTFields.state.on,
+      //   headlight_service: servicesStatus?.headlight_service === IOTFields.state.on,
+      //   drowsiness_service: servicesStatus?.drowsiness_service === IOTFields.state.on,
+      // });
+
+      try {
+        const activeSensorTypes = [];
+        const serviceToSensors = {
+          air_cond_service: [IOTFields.sensors.temp, IOTFields.sensors.humid],
+          headlight_service: [IOTFields.sensors.lux],
+          dist_service: [IOTFields.sensors.dist],
+        };
+
+        Object.keys(serviceToSensors).forEach((service) => {
+          if (servicesStatus[service] === IOTFields.state.on) {
+            activeSensorTypes.push(...serviceToSensors[service]);
+          }
+        });
+
+        // if (activeSensorTypes.length === 0) {
+        //   setLoading({
+        //     air_cond_service: false,
+        //     dist_service: false,
+        //     headlight_service: false,
+        //     drowsiness_service: false,
+        //   });
+        //   return true;
+        // }
+
+        const sensorTypesParam = activeSensorTypes.join(',');
+
+        const _sensorData = await apiClient(
+          'GET',
+          `${import.meta.env.VITE_SERVER_URL}/app/sensor_data?sensor_types=${sensorTypesParam}`
+        );
+
+        const newData = { ...data };
+        const newSensorData = { ...sensorsData };
+
+        _sensorData.forEach((sensor) => {
+          const value = parseFloat(sensor.value);
+          let type = sensor.sensor_type.toString().toLowerCase().replace(/\s+|\W+/g, '');
+
+          switch (type) {
+            case IOTFields.sensors.temp:
+              newData.temperature = value;
+              newSensorData.temperature = value;
+              break;
+            case IOTFields.sensors.humid:
+              newData.humidity = value;
+              newSensorData.humidity = value;
+              break;
+            case IOTFields.sensors.dist:
+              newData.distance = value;
+              newSensorData.distance = value;
+              break;
+            case IOTFields.sensors.lux:
+              newData.lightLevel = value;
+              newSensorData.lightLevel = value;
+              break;
+            default:
+              break;
+          }
+        });
+
+        setData(newData);
+        setSensorsData(newSensorData);
+      } catch (error) {
+        console.error(`handleGetSensorData's error:`, error);
+        const errorMessage = error.message;
+        setErrors((prev) => ({
+          ...prev,
+          air_cond_service: servicesStatus?.air_cond_service === IOTFields.state.on ? errorMessage : null,
+          dist_service: servicesStatus?.dist_service === IOTFields.state.on ? errorMessage : null,
+          headlight_service: servicesStatus?.headlight_service === IOTFields.state.on ? errorMessage : null,
+        }));
+      }
+      // finally {
+      //   setLoading({
+      //     air_cond_service: false,
+      //     dist_service: false,
+      //     headlight_service: false,
+      //     drowsiness_service: false,
+      //   });
+      // }
+    };
+
+    handleGetSensorData();
+    const intervalId = setInterval(handleGetSensorData, 3000);
+
+    return () => {
+      clearInterval(intervalId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [servicesStatus])
 
   const getDistanceWarning = (distance) => {
     if (distance < 50) return { class: 'bg-danger', message: 'Danger' };
@@ -292,72 +255,61 @@ const Home = () => {
   const changeACMode = (mode) => {
     setData((prevData) => ({
       ...prevData,
-      airConditioner: {
-        ...prevData.airConditioner,
+      airCond: {
+        ...prevData.airCond,
         status: mode,
       },
     }));
   };
 
   const sendACTemperatureToBackend = async (temperature) => {
-    if (servicesState.air_cond_service !== 'on') return;
-  
-    // Giới hạn giá trị từ 1 đến 100
-    const constrainedValue = Math.max(1, Math.min(100, temperature));
-  
+    if (servicesStatus?.air_cond_service !== IOTFields.state.on) return;
+
+    const constrainedValue = Math.max(0, Math.min(100, temperature));
+
     try {
       setLoading((prev) => ({ ...prev, air_cond_service: true }));
-      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/iot/service`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          service_type: 'air_cond_temp',
-          value: constrainedValue.toString(),
-        }),
-      });
-  
-      if (response.ok) {
-        console.log('Temperature updated successfully:', await response.json());
-        setData((prevData) => ({
-          ...prevData,
-          airConditioner: {
-            ...prevData.airConditioner,
-            temperature: constrainedValue,
-          },
-        }));
-        addActionToHistory('service_toggle', {
-          serviceType: 'air_cond_temp',
-          value: constrainedValue,
-          status: 'success',
-        }); // Thêm dấu chấm phẩy ở đây
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to update temperature');
-      }
+
+      const responseData = await apiClient(
+        'PATCH',
+        `${import.meta.env.VITE_SERVER_URL}/iot/service`,
+        {
+          body: JSON.stringify({
+            service_type: IOTFields.services.air_cond_service,
+            value: constrainedValue.toString(),
+          })
+        }
+      );
+
+      toast.success(SuccessMessages.controlIot.controlService);
+      console.log(`sendACTemperatureToBackend's response:`, responseData);
+
+      setData((prevData) => ({
+        ...prevData,
+        airCond: {
+          ...prevData.airCond,
+          temperature: constrainedValue,
+        },
+      }));
     } catch (error) {
-      console.error('Error updating temperature:', error.message);
+      toast.error(`${ErrorMessages.iot.controlService}${error.message}`);
+      console.error(`sendACTemperatureToBackend's error:`, error.message);
+
       setErrors((prev) => ({
         ...prev,
-        air_cond_service: 'Failed to update temperature.',
+        air_cond_service: `${ErrorMessages.iot.controlService}${error.message}`,
       }));
-      addActionToHistory('service_toggle', {
-        serviceType: 'air_cond_temp',
-        value: constrainedValue,
-        status: 'failed',
-        error: error.message,
-      }); // Thêm dấu chấm phẩy ở đây
     } finally {
       setLoading((prev) => ({ ...prev, air_cond_service: false }));
     }
   };
 
   const setACTemperature = (temp) => {
-    const newTemp = Math.max(1, Math.min(100, temp));
+    const newTemp = Math.max(0, Math.min(100, temp));
     setData((prevData) => ({
       ...prevData,
-      airConditioner: {
-        ...prevData.airConditioner,
+      airCond: {
+        ...prevData.airCond,
         temperature: newTemp,
       },
     }));
@@ -380,12 +332,12 @@ const Home = () => {
   const setHeadlightIntensity = (level) => {
     setData((prevData) => ({
       ...prevData,
-      headlightsBrightness: level,
+      headlightBrightness: level,
     }));
   };
 
   const getHeadlightStatusText = () => {
-    switch (data.headlightsBrightness) {
+    switch (data.headlightBrightness) {
       case 0:
         return 'Off';
       case 1:
@@ -401,36 +353,18 @@ const Home = () => {
     }
   };
 
-  const handleSendMockNotificationRequest = async () => {
-    await fetch(`${import.meta.env.VITE_SERVER_URL}/app/mock_notification`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-    })
-      .then((response) => {
-        console.log(response);
-      })
-      .catch((error) => {
-        console.log(error);
-      })
-  }
-
   return (
     <div className="container-fluid p-0">
       {errors.general && <div className="alert alert-danger">{errors.general}</div>}
 
-      <button onClick={handleSendMockNotificationRequest}>
-        Mock Notification
-      </button>
-
       <div className="row g-3 mb-3">
-        {servicesState.air_cond_service !== undefined && (
+        {servicesStatus?.air_cond_service && (
           <div className="col-12 col-lg-4">
             <div
               className={[
                 styles.panel,
                 'p-4 shadow bg-white rounded',
-                servicesState.air_cond_service !== 'on' ? styles.blurred : '',
+                servicesStatus?.air_cond_service !== IOTFields.state.on ? styles.blurred : '',
               ].join(' ')}
             >
               <h4 className="mb-3">Air conditioning</h4>
@@ -457,43 +391,43 @@ const Home = () => {
                     <div className="d-flex flex-wrap">
                       <button
                         className={`rounded btn ${
-                          data.airConditioner?.status === 'Manual' ? 'bg-primary-btn' : 'bg-gray-200'
+                          data.airCond?.status === IOTFields.mode.manual ? 'bg-primary-btn' : 'bg-gray-200'
                         } me-2 mb-2 px-3 py-1`}
-                        onClick={() => changeACMode('Manual')}
-                        disabled={servicesState.air_cond_service !== 'on'}
+                        onClick={() => changeACMode(IOTFields.mode.manual)}
+                        disabled={servicesStatus?.air_cond_service !== 'on'}
                       >
                         Manual
                       </button>
                       <button
                         className={`rounded btn ${
-                          data.airConditioner?.status === 'Off' ? 'bg-primary-btn' : 'bg-gray-200'
+                          data.airCond?.status === IOTFields.state.on ? 'bg-primary-btn' : 'bg-gray-200'
                         } mb-2 px-3 py-1`}
-                        onClick={() => changeACMode('Off')}
-                        disabled={servicesState.air_cond_service !== 'on'}
+                        onClick={() => changeACMode(IOTFields.state.on)}
+                          disabled={servicesStatus?.air_cond_service !== IOTFields.state.on}
                       >
                         Off
                       </button>
                     </div>
-                    {data.airConditioner.status !== 'Off' && (
-                      <div className="my-3">
-                        <span className="me-2">Set:</span>
-                        <button
-                          className="btn btn-outline-secondary py-1 bg-gray-200 rounded"
-                          onClick={() => setACTemperature(data.airConditioner.temperature - 1)}
-                          disabled={servicesState.air_cond_service !== 'on'}
-                        >
-                          -
-                        </button>
-                        <span className="mx-2">{data.airConditioner.temperature}</span>
-                        <button
-                          className="btn btn-outline-secondary py-1 bg-gray-200 rounded"
-                          onClick={() => setACTemperature(data.airConditioner.temperature + 1)}
-                          disabled={servicesState.air_cond_service !== 'on'}
-                        >
-                          +
-                        </button>
-                      </div>
-                    )}
+                      {data.airCond.status !== IOTFields.state.off && (
+                        <div className="my-3">
+                          <span className="me-2">Set:</span>
+                          <button
+                            className="btn btn-outline-secondary py-1 bg-gray-200 rounded"
+                            onClick={() => setACTemperature(data.airCond.temperature - 1)}
+                            disabled={servicesStatus?.air_cond_service !== IOTFields.state.on}
+                          >
+                            -
+                          </button>
+                          <span className="mx-2">{data.airCond.temperature}</span>
+                          <button
+                            className="btn btn-outline-secondary py-1 bg-gray-200 rounded"
+                            onClick={() => setACTemperature(data.airCond.temperature + 1)}
+                            disabled={servicesStatus?.air_cond_service !== 'on'}
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
                   </div>
                 </>
               )}
@@ -501,13 +435,13 @@ const Home = () => {
           </div>
         )}
 
-        {servicesState.drowsiness_service !== undefined && (
+        {servicesStatus?.drowsiness_service && (
           <div className="col-12 col-lg-4">
             <div
               className={[
                 styles.panel,
                 'p-4 shadow bg-white rounded',
-                servicesState.drowsiness_service !== 'on' ? styles.blurred : '',
+                servicesStatus?.drowsiness_service !== IOTFields.state.on ? styles.blurred : '',
               ].join(' ')}
             >
               <h4 className="mb-3">Driver Monitoring</h4>
@@ -541,7 +475,7 @@ const Home = () => {
                         value="3"
                         onChange={() => {}}
                         className="mx-2 flex-grow-1"
-                        disabled={servicesState.drowsiness_service !== 'on'}
+                        disabled={servicesStatus?.drowsiness_service !== IOTFields.state.on}
                       />
                       <span className="ms-2 small">High</span>
                     </div>
@@ -561,13 +495,13 @@ const Home = () => {
           </div>
         )}
 
-        {servicesState.headlight_service !== undefined && (
+        {servicesStatus?.headlight_service && (
           <div className="col-12 col-lg-4">
             <div
               className={[
                 styles.panel,
                 'p-4 shadow bg-white rounded',
-                servicesState.headlight_service !== 'on' ? styles.blurred : '',
+                servicesStatus?.headlight_service !== IOTFields.state.on ? styles.blurred : '',
               ].join(' ')}
             >
               <h4 className="mb-3">Smart Headlights</h4>
@@ -609,9 +543,9 @@ const Home = () => {
                           <button
                             key={level}
                             type="button"
-                            disabled={servicesState.headlight_service !== 'on'}
+                            disabled={servicesStatus?.headlight_service !== IOTFields.state.on}
                             className={`flex-fill btn ${
-                              data.headlightsBrightness === level ? 'bg-primary-btn' : 'bg-gray-200'
+                              data.headlightBrightness === level ? 'bg-primary-btn' : 'bg-gray-200'
                             } ${level === 0 ? 'rounded-l' : level === 4 ? 'rounded-r' : ''}`}
                             onClick={() => setHeadlightIntensity(level)}
                           >
@@ -627,13 +561,13 @@ const Home = () => {
           </div>
         )}
 
-        {servicesState.dist_service !== undefined && (
+        {servicesStatus?.dist_service && (
           <div className="col-12 col-lg-4">
             <div
               className={[
                 styles.panel,
                 'p-4 shadow bg-white rounded',
-                servicesState.dist_service !== 'on' ? styles.blurred : '',
+                servicesStatus?.dist_service !== IOTFields.state.on ? styles.blurred : '',
               ].join(' ')}
             >
               <h4 className="mb-3">Distance Sensor</h4>
