@@ -24,7 +24,6 @@ const Home = () => {
     initializeApp,
     clearUserContext,
     isFirstLoad,
-    setIsFirstLoad,
   } = useUserContext();
 
   const [data, setData] = React.useState({
