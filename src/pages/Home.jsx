@@ -62,7 +62,8 @@ const Home = () => {
     if (isFirstLoad) {
       initializeApp();
     }
-  }, [isFirstLoad, initializeApp]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // useEffect for missing needed data for Home page
   useEffect(() => {
@@ -329,11 +330,31 @@ const Home = () => {
     }
   };
 
-  const setHeadlightIntensity = (level) => {
-    setData((prevData) => ({
-      ...prevData,
-      headlightBrightness: level,
-    }));
+  const setHeadlightIntensity = async (level) => {
+    try {
+      const responseData = await apiClient(
+        'PATCH',
+        `${import.meta.env.VITE_SERVER_URL}/iot/service`,
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: {
+            service_type: IOTFields.services.headlight_service,
+            value: level.toString()
+          }
+        }
+      );
+
+      setData((prevData) => ({
+        ...prevData,
+        headlightBrightness: level,
+      }));
+      console.log(`setHeadlightIntensity's response:`, responseData);
+    }
+    catch (error) {
+      console.error(`setHeadlightIntensity's error:`, error);
+    }
   };
 
   const getHeadlightStatusText = () => {

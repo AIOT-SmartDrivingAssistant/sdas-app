@@ -3,6 +3,7 @@ import clsx from 'clsx';
 import Robot from '../../../assets/robot.svg';
 
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 import toast from 'react-hot-toast';
 
@@ -18,6 +19,10 @@ const SideBar = () => {
   const { servicesStatus, setServicesStatus, clearUserContext } = useUserContext();
 
   const [ systemStatus, setSystemStatus ] = useState(servicesStatus?.system_status);
+
+  useEffect(() => {
+    setSystemStatus(servicesStatus?.system_status);
+  }, [servicesStatus])
 
   const handleLogout = async (e) => {
     e.preventDefault();

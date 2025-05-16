@@ -27,18 +27,70 @@ function Services() {
   }, [pageServicesState, servicesStatus])
 
   const [thresholdValues, setThresholdValues] = useState({
-    air_cond_service: {},
-    drowsiness_service: {},
-    headlight_service: {},
-    distance_service: {},
+    air_cond_service: {
+      temp_threshold: 0,
+      humid_threshold: 0
+    },
+    drowsiness_service: {
+      drowsiness_threshold: 0
+    },
+    headlight_service: {
+      lux_threshold: 0
+    },
+    distance_service: {
+      distance_threshold: 0
+    },
   });
 
+  const updateThresholdValues = () => {
+    let values = thresholdValues;
+    values.air_cond_service.temp_threshold = servicesStatus?.temp_threshold;
+    values.air_cond_service.humid_threshold = servicesStatus?.humid_threshold;
+
+    values.drowsiness_service.drowsiness_threshold = servicesStatus?.drowsiness_threshold;
+
+    values.headlight_service.lux_threshold = servicesStatus?.lux_threshold;
+
+    values.distance_service.distance_threshold = servicesStatus?.distance_threshold;
+
+    setThresholdValues(values);
+  }
+
+  useEffect(() => {
+    updateThresholdValues();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [servicesStatus])
 
   const serviceDisplayNames = {
-    [IOTFields.services.air_cond_service]: { title: 'Air Conditioning', description: 'Automatic air conditioning', thresholds:['Temperature Threshold','Humidity Threshold']},
-    [IOTFields.services.drowsiness_service]: { title: 'Driver Monitoring', description: "Check the driver's status", thresholds:['Drowsiness Threshold'] },
-    [IOTFields.services.headlight_service]: { title: 'Smart Headlights', description: "Adjust light when it's dark", thresholds:['Lux Threshold'] },
-    [IOTFields.services.distance_service]: { title: 'Distance', description: 'Distance between objects', thresholds:['Distance Threshold'] },
+    [IOTFields.services.air_cond_service]: { 
+      title: 'Air Conditioning',
+      description: 'Automatic air conditioning',
+      thresholds:{
+        temp_threshold: 'Temperature Threshold',
+        humid_threshold: 'Humidity Threshold'
+      }
+    },
+    [IOTFields.services.drowsiness_service]: {
+      title: 'Driver Monitoring',
+      description: "Check the driver's status",
+      thresholds:{
+        drowsiness_threshold: 'Drowsiness Threshold'
+      }
+    },
+    [IOTFields.services.headlight_service]: {
+      title: 'Smart Headlights',
+      description: "Adjust light when it's dark",
+      thresholds: {
+        lux_threshold: 'Lux Threshold'
+      }
+    },
+    [IOTFields.services.distance_service]: {
+      title: 'Distance',
+      description: 'Distance between objects',
+      thresholds: {
+        distance_threshold: 'Distance Threshold'
+      }
+    },
   };
 
   const handleToggleChange = async (serviceType, value) => {
@@ -80,75 +132,75 @@ function Services() {
     }
   };
 
+  const thresholdFieldsForService = {
+    air_cond_service: ["temp_threshold", "humid_threshold"],
+    headlight_service: ["lux_threshold"],
+    distance_service: ["distance_threshold"],
+    drowsiness_service: ["drowsiness_threshold"]
+  };
+
   const renderThresholdInputs = (serviceType) => {
-    const displayInfo = serviceDisplayNames[serviceType];
-    const thresholds = displayInfo.thresholds;
+    const thresholds = thresholdFieldsForService[serviceType];
 
-    // Đảm bảo thresholdValues[serviceType] đã có key cho từng threshold
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    useEffect(() => {
-      setThresholdValues((prev) => {
-        if (!prev[serviceType] || Object.keys(prev[serviceType]).length !== thresholds.length) {
-          const initial = {};
-          thresholds.forEach((th) => {
-            initial[th] = '';
-          });
-          return { ...prev, [serviceType]: initial };
-        }
-        return prev;
-      });
-    }, [serviceType, thresholds]);
-
-    const handleThresholdChange = async (th, e) => {
+    const handleThresholdChange = async (threshold, e) => {
       const val = e.target.value.replace(/\D/g, '').slice(0, 3); 
       setThresholdValues((prev) => ({
         ...prev,
         [serviceType]: {
           ...prev[serviceType],
-          [th]: val,
+          [threshold]: val,
         },
       }));
     };
 
-    const handleThresholdBlur = async (th, e) => {
+    const handleThresholdBlur = async (threshold, e) => {
       const val = e.target.value.replace(/\D/g, '').slice(0, 3);
       const formData = {
-        service_type: serviceType,
-        thresholds: {
-          ...thresholdValues[serviceType],
-          [th]: val,
-        }
+        service_type: threshold,
+        value: val
       };
       try {
         const responseData = await apiClient(
           'PATCH',
           `${import.meta.env.VITE_SERVER_URL}/iot/service`,
           {
+            headers: {
+              'Content-Type': 'application/json'
+            },
             body: JSON.stringify(formData),
           }
         );
+
+        setServicesStatus((prev) => {
+          return ({
+            ...prev,
+            [threshold]: val
+          })
+        });
+
         console.log(`handleThresholdBlur's response:`, responseData);
         toast.success(SuccessMessages.controlIot.setThreshold);
       } catch (error) {
         console.error(`handleThresholdBlur's error:`, error);
         toast.error(`${ErrorMessages.iot.setThreshold}${error.message}`);
       }
-  };
+    };
 
       return (
         <div className={styles.servicesInputNumberWrapper}>
-          {thresholds.map((th) => (
-            <div key={th} className={styles.servicesInputNumberGroup}>
-              <span className={styles.servicesInputNumberLabel}>{th}</span>
+          {thresholds.map((threshold) => (
+            <div key={threshold} className={styles.servicesInputNumberGroup}>
+              <span className={styles.servicesInputNumberLabel}>{serviceDisplayNames[serviceType].thresholds[threshold]}</span>
               <input
                 className={styles.servicesInputNumberBox}
                 type="number"
-                value={thresholdValues[serviceType]?.[th] || ''}
-                onChange={(e) => handleThresholdChange(th, e)}
-                onBlur={(e) => handleThresholdBlur(th, e)}
+                value={thresholdValues[serviceType]?.[threshold] || 0}
+                onChange={(e) => handleThresholdChange(threshold, e)}
+                onBlur={(e) => handleThresholdBlur(threshold, e)}
+                disabled={servicesStatus[serviceType] !== IOTFields.state.on || isLoading[serviceType] || !servicesStatus?.system_status}
                 placeholder="0"
-                min={0}
-                max={999}
+                min={1}
+                max={99}
               />
             </div>
           ))}
@@ -183,9 +235,9 @@ function Services() {
             type="checkbox"
             className="form-check-input"
             id={`${serviceType}Toggle`}
-            checked={pageServicesState[serviceType] === 'on'}
+            checked={pageServicesState[serviceType] === IOTFields.state.on}
             onChange={() => handleToggleChange(serviceType, pageServicesState[serviceType] !== IOTFields.state.on)}
-            disabled={isLoading[serviceType] || !servicesStatus?.system_status}
+            disabled={servicesStatus[serviceType] !== IOTFields.state.on || isLoading[serviceType] || !servicesStatus?.system_status}
           />
         </div>
       </div>
