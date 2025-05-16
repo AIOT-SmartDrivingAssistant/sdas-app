@@ -1,30 +1,34 @@
-import React, { useState, useEffect, useMemo } from 'react';
 import styles from '../components/Home/activityHistory.module.css';
-import { useUserContext } from '../hooks/UserContext.jsx';
-import { formatTimestamp, mapServiceType } from '../utils/helpers.js';
+
+import React, { useState, useEffect, useMemo } from 'react';
+
 import apiClient from '../services/APIClient.jsx';
+import { useUserContext } from '../hooks/UserContext.jsx';
+
+import { formatTimestamp, mapServiceType } from '../utils/helpers.jsx';
 
 export default function ActivityHistory() {
   const { actionHistory, addActionHistory } = useUserContext();
-  const [initialActivities, setInitialActivities] = useState([]);
+  const [actions, setActions] = useState([]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(8);
+  const [itemsPerPage] = useState(7);
+
   const MAX_PAGES = 5;
   const MAX_ITEMS = MAX_PAGES * itemsPerPage;
 
-  console.log(actionHistory);
-
-  const handleGetInitialHistory = async () => {
+  const handleGetHistory = async () => {
     if (actionHistory && actionHistory.length >= 4) {
-      const formattedInitialActivities = actionHistory.map((item, index) => ({
+      const formattedActions = actionHistory?.map((item, index) => ({
         id: index + 1,
         time: formatTimestamp(item.timestamp),
         type: mapServiceType(item.service_type),
         status: item.description,
       }));
-      setInitialActivities(formattedInitialActivities);
+      setActions(formattedActions);
       return;
     }
 
@@ -37,18 +41,20 @@ export default function ActivityHistory() {
         `${import.meta.env.VITE_SERVER_URL}/app/action_history`
       );
 
-      console.log('Action history fetched successfully: ', responseData);
-      await addActionHistory(responseData);
-
-      const formattedInitialActivities = actionHistory.map((item, index) => ({
+      console.log(`handleGetHistory's response:`, responseData);
+      
+      const formattedActions = responseData?.map((item, index) => ({
         id: index + 1,
         time: formatTimestamp(item.timestamp),
         type: mapServiceType(item.service_type),
         status: item.description,
       }));
-      setInitialActivities(formattedInitialActivities);
+
+      setActions(formattedActions);
+      addActionHistory(responseData);
     } catch (error) {
-      console.error('Error fetching action history:', error);
+      console.error(`handleGetHistory's error:`, error);
+      setActions([]);
       setError(error);
     } finally {
       setLoading(false);
@@ -56,19 +62,19 @@ export default function ActivityHistory() {
   };
 
   useEffect(() => {
-    handleGetInitialHistory();
+    handleGetHistory();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const allActivities = useMemo(() => {
-    return initialActivities
+    return actions
       .filter((item, index, self) => {
         const key = `${item.time}-${item.type}-${item.status}`;
         return index === self.findIndex((t) => `${t.time}-${t.type}-${t.status}` === key);
       })
       .slice(0, MAX_ITEMS);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialActivities]);
+  }, [actions]);
 
   const currentItems = useMemo(() => {
     const indexOfLastItem = currentPage * itemsPerPage;
@@ -147,7 +153,7 @@ export default function ActivityHistory() {
           {error}
           <button
             className="btn btn-sm btn-outline-danger float-end"
-            onClick={() => handleGetInitialHistory()}
+            onClick={() => handleGetHistory()}
           >
             Retry
           </button>

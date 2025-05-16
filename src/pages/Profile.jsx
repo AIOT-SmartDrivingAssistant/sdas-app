@@ -1,10 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import styles from '../components/Home/Profile.module.css';
 import defaultAvatar from '../assets/images/default_avatar.png';
+import styles from '../components/Home/Profile.module.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { useUserContext } from '../hooks/UserContext.jsx';
+
+import React, { useState, useEffect } from 'react';
+
 import toast from 'react-hot-toast';
+
 import apiClient from '../services/APIClient.jsx';
+import { useUserContext } from '../hooks/UserContext.jsx';
+
+import { DbDocuments } from '../utils/CommonFields.jsx';
 
 function Profile() {
   const { userData, setUserData, userAvatar, setUserAvatar } = useUserContext();
@@ -32,7 +37,16 @@ function Profile() {
     const handleGetUserData = async () => {
       setLoading(true);
       try {
-        const _userData = await apiClient('GET', `${import.meta.env.VITE_SERVER_URL}/user/`);
+        const _userData = await apiClient(
+          'GET',
+          `${import.meta.env.VITE_SERVER_URL}/user/`,
+          {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
         setUserData(_userData);
         setFormData(_userData);
       } catch (error) {
@@ -45,9 +59,21 @@ function Profile() {
     const handleGetUserAvatar = async () => {
       setLoading(true);
       try {
-        const _userAvatar = await apiClient('GET', `${import.meta.env.VITE_SERVER_URL}/user/avatar`);
-        setUserAvatar(_userAvatar);
+        const _userAvatar = await apiClient(
+          'GET',
+          `${import.meta.env.VITE_SERVER_URL}/user/avatar`,
+          {
+            headers: {
+              'Content-Type': 'multipart/blob'
+            }
+          },
+          true
+        );
+        const reader = new FileReader();
+        reader.onloadend = () => setUserAvatar(reader.result);
+        reader.readAsDataURL(_userAvatar);
       } catch (error) {
+        setUserAvatar(defaultAvatar);
         console.error('Fail to get user avatar: ', error);
       } finally {
         setLoading(false);
@@ -62,7 +88,7 @@ function Profile() {
   }, []);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    let { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -84,9 +110,16 @@ function Profile() {
     e.preventDefault();
 
     try {
-      const responseData = await apiClient('PATCH', `${import.meta.env.VITE_SERVER_URL}/user/`, {
-        body: JSON.stringify(formData),
-      });
+      const responseData = await apiClient(
+        'PATCH',
+        `${import.meta.env.VITE_SERVER_URL}/user/`, 
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData),
+        }
+      );
 
       toast.success(responseData.message);
       setUserData(formData);
@@ -104,8 +137,9 @@ function Profile() {
       const responseData = await apiClient(
         'PUT',
         `${import.meta.env.VITE_SERVER_URL}/user/avatar`,
-        { body: avatarFormData },
-        true,
+        {
+          body: avatarFormData 
+        }
       );
 
       toast.success(responseData.message);
@@ -118,7 +152,15 @@ function Profile() {
     e.preventDefault();
 
     try {
-      const responseData = await apiClient('DELETE', `${import.meta.env.VITE_SERVER_URL}/user/avatar`);
+      const responseData = await apiClient(
+        'DELETE',
+        `${import.meta.env.VITE_SERVER_URL}/user/avatar`,
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
       setUserAvatar(null);
       setAvatar(defaultAvatar);

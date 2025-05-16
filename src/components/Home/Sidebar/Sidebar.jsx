@@ -1,52 +1,80 @@
 import styles from './Sidebar.module.css';
-import { NavLink, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import Robot from '../../../assets/robot.svg';
+
+import { NavLink, useNavigate } from 'react-router-dom';
+
 import toast from 'react-hot-toast';
-import { useUserContext } from '../../../hooks/UserContext.jsx';
+
 import apiClient from '../../../services/APIClient.jsx';
+import { useUserContext } from '../../../hooks/UserContext.jsx';
+
+import { IOTFields } from '../../../utils/CommonFields.jsx'
+import { ErrorMessages, SuccessMessages } from '../../../utils/CommonMessages.jsx';
+import { useState } from 'react';
 
 const SideBar = () => {
   const navigate = useNavigate();
-  const { systemState, setSystemState, setServicesState, clearUserContext } = useUserContext();
+  const { servicesStatus, setServicesStatus, clearUserContext } = useUserContext();
+
+  const [ systemStatus, setSystemStatus ] = useState(servicesStatus?.system_status);
 
   const handleLogout = async (e) => {
     e.preventDefault();
     try {
-      const logoutResponse = await apiClient('POST', `${import.meta.env.VITE_SERVER_URL}/auth/logout`);
+      const logoutResponse = await apiClient(
+        'POST',
+        `${import.meta.env.VITE_SERVER_URL}/auth/logout`,
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      console.log(`Logout response:`, logoutResponse);
+      console.log(`handleLogout's response:`, logoutResponse);
 
       clearUserContext();
-      toast.success(`Logout successful!`);
+      toast.success(SuccessMessages.auth.logout);
       navigate('/');
     } catch (error) {
-      toast.error(error.message);
+      console.log(`handleLogout's error:`, error);
+      toast.error(`${ErrorMessages.auth.logout}${error.message}`);
     }
   };
 
   const handleSystemToggle = async (value) => {
-    const command = value ? 'on' : 'off';
+    const command = value ? IOTFields.state.on : IOTFields.state.off;
 
     try {
-      const responseData = await apiClient('POST', `${import.meta.env.VITE_SERVER_URL}/iot/${command}`);
+      const responseData = await apiClient(
+        'POST',
+        `${import.meta.env.VITE_SERVER_URL}/iot/${command}`,
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      setSystemState(value);
-      setServicesState(prev => {
+      setServicesStatus(prev => {
         return {
           ...prev,
           ...Object.fromEntries(
-        Object.keys(prev)
-          .filter(key => key?.includes('service'))
-          .map(key => [key, value ? 'on' : 'off'])
+              Object.keys(prev)
+                .filter(key => key?.includes(IOTFields.target.service) || key?.includes(IOTFields.target.system))
+                .map(key => [key, value ? IOTFields.state.on : IOTFields.state.off])
           ),
         };
       });
 
-      console.log(`System turned ${command}:`, responseData);
-      toast.success(`System turned ${command} successfully!`);
+      console.log(`handleSystemToggle's response:`, responseData);
+      toast.success(value ? SuccessMessages.controlIot.systemOn : SuccessMessages.controlIot.systemOff);
     } catch (error) {
-      toast.error(`Error turning ${command} the system: ${error}`);
+      console.log('servicesStatus.system_status', servicesStatus?.system_status);
+      setSystemStatus(servicesStatus?.system_status);
+      console.error(`handleSystemToggle's error:`, error);
+      toast.error(`${ErrorMessages.iot.toggle}${error.message}`)
     }
   };
 
@@ -71,10 +99,10 @@ const SideBar = () => {
                   <input
                     className="form-check-input ms-auto"
                     type="checkbox"
-                    checked={systemState}
+                    checked={systemStatus === IOTFields.state.on}
                     role="switch"
                     id="switchCheckDefault"
-                    onChange={() => handleSystemToggle(!systemState)}
+                    onChange={() => handleSystemToggle(servicesStatus?.system_status === IOTFields.state.on ? false : true)}
                   />
                 </div>
               </div>

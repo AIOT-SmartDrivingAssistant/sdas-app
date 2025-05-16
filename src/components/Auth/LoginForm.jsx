@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom';
 
 import toast from 'react-hot-toast';
 
+import apiClient from '../../services/APIClient.jsx'
 import { useUserContext } from '../../hooks/UserContext.jsx';
+
+import { ErrorMessages, SuccessMessages } from '../../utils/CommonMessages.jsx';
 
 function LoginForm({ showSignUp }) {
   const navigate = useNavigate();
@@ -17,38 +20,23 @@ function LoginForm({ showSignUp }) {
     const password = document.getElementById('password_log').value;
 
     if (!username || !password) {
-      toast.error('Please enter username and password');
+      toast.error(ErrorMessages.input.loginFormMissingField);
       return;
     }
 
     setLoading(true);
     try {
-      const loginResponse = await fetch(`${import.meta.env.VITE_SERVER_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const loginResponse = await apiClient(
+        'POST',
+        `${import.meta.env.VITE_SERVER_URL}/auth/login`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ username, password }),
         },
-        credentials: 'include',
-        body: JSON.stringify({ username, password }),
-      });
-
-      const loginResponseData = await loginResponse.json();
-      console.log('Login response:', loginResponseData);
-
-      if (!loginResponse.ok) {
-        if (loginResponse.status == 422) {
-          const errorEntity = loginResponseData.detail[0].loc[1];
-          const errorMessage = loginResponseData.detail[0].msg;
-          throw new Error(`${errorEntity}: ${errorMessage}`);
-        }
-        else if (loginResponse.status == 401) {
-          const errorMessage = loginResponseData.message;
-          throw new Error(errorMessage);
-        }
-        else {
-          throw new Error(`Internal server error`);
-        }
-      }
+      );
+      console.log(`handleLogin's response:`, loginResponse);
 
       const source = new EventSource(`${import.meta.env.VITE_SERVER_URL}/app/events`, {
         withCredentials: true,
@@ -66,12 +54,12 @@ function LoginForm({ showSignUp }) {
       }
       setEventSource(source);
       
-      toast.success('Login successful!');
+      toast.success(SuccessMessages.login);
       navigate('/home');
     }
     catch (error) {
-      console.error('Login error:', error);
-      toast.error(error.message);
+      console.error(`handleLogin's error:`, error);
+      toast.error(`${ErrorMessages.auth.login}${error.message}`);
     }
     finally {
       setLoading(false);
