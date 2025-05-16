@@ -22,10 +22,6 @@ function Services() {
 
   const [ pageServicesState, setPageServicesState ] = useState(servicesStatus);
 
-  useEffect(() => {
-    setPageServicesState(servicesStatus);
-  }, [pageServicesState, servicesStatus])
-
   const [thresholdValues, setThresholdValues] = useState({
     air_cond_service: {
       temp_threshold: 0,
@@ -42,24 +38,28 @@ function Services() {
     },
   });
 
-  const updateThresholdValues = () => {
-    let values = thresholdValues;
-    values.air_cond_service.temp_threshold = servicesStatus?.temp_threshold;
-    values.air_cond_service.humid_threshold = servicesStatus?.humid_threshold;
-
-    values.drowsiness_service.drowsiness_threshold = servicesStatus?.drowsiness_threshold;
-
-    values.headlight_service.lux_threshold = servicesStatus?.lux_threshold;
-
-    values.distance_service.distance_threshold = servicesStatus?.distance_threshold;
-
-    setThresholdValues(values);
+  const updateThresholdValues = (status) => {
+    setThresholdValues({
+      air_cond_service: {
+        temp_threshold: status?.temp_threshold || 0,
+        humid_threshold: status?.humid_threshold || 0
+      },
+      drowsiness_service: {
+        drowsiness_threshold: status?.drowsiness_threshold || 0
+      },
+      headlight_service: {
+        lux_threshold: status?.lux_threshold || 0
+      },
+      distance_service: {
+        distance_threshold: status?.distance_threshold || 0
+      },
+    });
   }
 
   useEffect(() => {
-    updateThresholdValues();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [servicesStatus])
+    setPageServicesState(servicesStatus);
+    updateThresholdValues(servicesStatus);
+  }, [servicesStatus]);
 
   const serviceDisplayNames = {
     [IOTFields.services.air_cond_service]: { 
@@ -143,7 +143,7 @@ function Services() {
     const thresholds = thresholdFieldsForService[serviceType];
 
     const handleThresholdChange = async (threshold, e) => {
-      const val = e.target.value.replace(/\D/g, '').slice(0, 3); 
+      const val = Number(e.target.value);
       setThresholdValues((prev) => ({
         ...prev,
         [serviceType]: {
@@ -154,7 +154,7 @@ function Services() {
     };
 
     const handleThresholdBlur = async (threshold, e) => {
-      const val = e.target.value.replace(/\D/g, '').slice(0, 3);
+      const val = Number(e.target.value);
       const formData = {
         service_type: threshold,
         value: val
@@ -194,10 +194,10 @@ function Services() {
               <input
                 className={styles.servicesInputNumberBox}
                 type="number"
-                value={thresholdValues[serviceType]?.[threshold] || 0}
+                value={thresholdValues[serviceType][threshold] || 0}
                 onChange={(e) => handleThresholdChange(threshold, e)}
                 onBlur={(e) => handleThresholdBlur(threshold, e)}
-                disabled={servicesStatus[serviceType] !== IOTFields.state.on || isLoading[serviceType] || !servicesStatus?.system_status}
+                // disabled={servicesStatus[serviceType] !== IOTFields.state.on || isLoading[serviceType] || !servicesStatus?.system_status}
                 placeholder="0"
                 min={1}
                 max={99}
