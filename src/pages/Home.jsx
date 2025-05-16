@@ -278,14 +278,18 @@ const Home = () => {
   const setACTemperature = (temp) => {
     const validTemps = [0, 25, 50, 75, 100];
     const newTemp = validTemps.includes(temp) ? temp : 0;
-    setData((prevData) => ({
-      ...prevData,
-      airCond: {
-        ...prevData.airCond,
-        temperature: newTemp,
-      },
-    }));
-    sendACTemperatureToBackend(newTemp);
+    if (servicesStatus?.air_cond_service === IOTFields.state.on) {
+          setData((prevData) => ({
+            ...prevData,
+            airCond: {
+              ...prevData.airCond,
+              temperature: newTemp,
+            },
+          }));
+          sendACTemperatureToBackend(newTemp);
+        } else {
+          toast.error('Air conditioning service is off. Please turn it on to adjust temperature.');
+        }
   };
 
   const getDriverStatusColor = () => {
@@ -338,13 +342,12 @@ const Home = () => {
       {errors.general && <div className="alert alert-danger">{errors.general}</div>}
 
       <div className="row g-3 mb-3">
-        {servicesStatus?.air_cond_service && (
+        {servicesStatus?.air_cond_service !== undefined && (
           <div className="col-12 col-lg-4">
             <div
               className={[
                 styles.panel,
                 'p-4 shadow bg-white rounded',
-                servicesStatus?.air_cond_service !== IOTFields.state.on ? styles.blurred : '',
               ].join(' ')}
             >
               <h4 className="mb-3">Air conditioning</h4>
@@ -359,7 +362,7 @@ const Home = () => {
                       <p className="fw-bold fs-2 mb-1">{data.humidity?.toFixed(1)}%</p>
                     </div>
                   </div>
-                  {servicesStatus?.air_cond_service === IOTFields.state.off && servicesStatus?.system_status === IOTFields.state.on && (
+                  { servicesStatus?.system_status === IOTFields.state.on && (
                     <div className="mb-2">
                       <div className="my-3">
                         <p className="mb-2 small text-body-tertiary">Set Temperature</p>
@@ -374,12 +377,18 @@ const Home = () => {
                                   : 'bg-gray-200'
                               } ${index === 0 ? 'rounded-l' : index === 4 ? 'rounded-r' : ''}`}
                               onClick={() => setACTemperature(level)}
+                              disabled={servicesStatus?.air_cond_service !== IOTFields.state.on}
                             >
                               {level}
                             </button>
                           ))}
                         </div>
                       </div>
+                    </div>
+                  )}
+                  {servicesStatus?.air_cond_service === IOTFields.state.off && (
+                    <div className="alert alert-warning mt-2" role="alert">
+                      Air conditioning service is off. Turn it on in the Services page to adjust.
                     </div>
                   )}
                 </>
