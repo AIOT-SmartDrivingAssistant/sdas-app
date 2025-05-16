@@ -198,7 +198,7 @@ function Services() {
                 value={thresholdValues[serviceType][threshold] || 0}
                 onChange={(e) => handleThresholdChange(threshold, e)}
                 onBlur={(e) => handleThresholdBlur(threshold, e)}
-                disabled={servicesStatus[serviceType] !== IOTFields.state.on || isLoading[serviceType] || !servicesStatus?.system_status}
+                disabled={isLoading[serviceType] || !servicesStatus?.system_status}
                 placeholder="0"
                 min={1}
                 max={99}
@@ -238,7 +238,7 @@ function Services() {
             id={`${serviceType}Toggle`}
             checked={pageServicesState[serviceType] === IOTFields.state.on}
             onChange={() => handleToggleChange(serviceType, pageServicesState[serviceType] !== IOTFields.state.on)}
-            disabled={servicesStatus[serviceType] !== IOTFields.state.on || isLoading[serviceType] || !servicesStatus?.system_status}
+            disabled={isLoading[serviceType] || !servicesStatus?.system_status}
           />
         </div>
       </div>

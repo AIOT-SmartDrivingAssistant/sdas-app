@@ -166,7 +166,8 @@ const Home = () => {
           `${import.meta.env.VITE_SERVER_URL}/app/sensor_data?sensor_types=${sensorTypesParam}`
         );
 
-        const newData = { ...data };
+        setData(prevData => {
+          const newData = { ...prevData };
         const newSensorData = { ...sensorsData };
 
         _sensorData.forEach((sensor) => {
@@ -195,8 +196,14 @@ const Home = () => {
           }
         });
 
-        setData(newData);
-        setSensorsData(newSensorData);
+        // Preserve headlightBrightness if not provided by backend
+        if (!_sensorData.some(sensor => sensor.sensor_type === 'headlight_brightness')) {
+            newData.headlightBrightness = prevData.headlightBrightness;
+          }
+          
+          setSensorsData(newSensorData);
+          return newData;
+        });
       } catch (error) {
         console.error(`handleGetSensorData's error:`, error);
         const errorMessage = error.message;
@@ -210,7 +217,7 @@ const Home = () => {
     };
 
     handleGetSensorData();
-    const intervalId = setInterval(handleGetSensorData, 3000);
+    const intervalId = setInterval(handleGetSensorData, 50000);
 
     return () => {
       clearInterval(intervalId);
@@ -301,12 +308,13 @@ const Home = () => {
           headers: {
             'Content-Type': 'application/json'
           },
-          body: {
+          body: JSON.stringify( {
             service_type: IOTFields.services.headlight_service,
             value: level.toString()
-          }
+          })
         }
       );
+      
 
       setData((prevData) => ({
         ...prevData,
@@ -372,7 +380,7 @@ const Home = () => {
                   { servicesStatus?.system_status === IOTFields.state.on && (
                     <div className="mb-2">
                       <div className="my-3">
-                        <p className="mb-2 small text-body-tertiary">Set Temperature</p>
+                        <p className="mb-2 small text-body-tertiary">Set Fan</p>
                         <div className="btn-group small d-flex w-100" role="group">
                           {[0, 25, 50, 75, 100].map((level, index) => (
                             <button
@@ -384,7 +392,7 @@ const Home = () => {
                                   : 'bg-gray-200'
                               } ${index === 0 ? 'rounded-l' : index === 4 ? 'rounded-r' : ''}`}
                               onClick={() => sendACTemperatureToBackend(level)}
-                              disabled={servicesStatus?.air_cond_service !== IOTFields.state.on}
+                              disabled={servicesStatus?.system_status !== IOTFields.state.on}
                             >
                               {level}
                             </button>
@@ -461,46 +469,43 @@ const Home = () => {
               className={[
                 styles.panel,
                 'p-4 shadow bg-white rounded',
-                servicesStatus?.headlight_service !== IOTFields.state.on ? styles.blurred : '',
               ].join(' ')}
             >
               <h4 className="mb-3">Smart Headlights</h4>
-                <>
-                  <div>
-                    <p className="mb-2 small text-body-tertiary">Ambient Light Intensity</p>
-                    {errors.headlight_service ? (
-                      <p className="text-danger mb-1">{errors.headlight_service}</p>
-                    ) : (
-                      <>
-                        <div className="progress mb-1">
-                          <div
-                            className="progress-bar bg-primary"
-                            role="progressbar"
-                            style={{ width: `${data.lightLevel}%` }}
-                            aria-valuemin="0"
-                            aria-valuemax="100"
-                          ></div>
-                        </div>
-                        <p className="mb-3 text-end small">{data.lightLevel}%</p>
-                      </>
-                    )}
-                    <div>
+              <div>
+                <p className="mb-2 small text-body-tertiary">Ambient Light Intensity</p>
+                {errors.headlight_service ? (
+                  <p className="text-danger mb-1">{errors.headlight_service}</p>
+                ) : (
+                  <>
+                    <div className="progress mb-1">
+                      <div
+                        className="progress-bar bg-primary"
+                        role="progressbar"
+                        style={{ width: `${data.lightLevel}%` }}
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                      ></div>
+                    </div>
+                    <p className="mb-3 text-end small">{data.lightLevel}%</p>
+                  </>
+                )}
+                {servicesStatus?.system_status === IOTFields.state.on && (
+                  <div className="mb-2">
+                    <div className="my-3">
                       <p className="mb-2 small text-body-tertiary">
                         Headlight level:{' '}
-                        <span className="fw-bold" style={{ color: '#022f6c' }}>
-                          {getHeadlightStatusText()}
-                        </span>
                       </p>
                       <div className="btn-group small d-flex w-100" role="group">
-                        {[0, 1, 2, 3, 4].map((level) => (
+                        {[0, 1, 2, 3, 4].map((level,index) => (
                           <button
                             key={level}
                             type="button"
-                            disabled={servicesStatus?.headlight_service !== IOTFields.state.on}
                             className={`flex-fill btn ${
                               data.headlightBrightness === level ? 'bg-primary-btn' : 'bg-gray-200'
-                            } ${level === 0 ? 'rounded-l' : level === 4 ? 'rounded-r' : ''}`}
+                            } ${index === 0 ? 'rounded-l' : index === 4 ? 'rounded-r' : ''}`}
                             onClick={() => setHeadlightIntensity(level)}
+                            disabled={servicesStatus?.system_status !== IOTFields.state.on}
                           >
                             {level}
                           </button>
@@ -508,7 +513,13 @@ const Home = () => {
                       </div>
                     </div>
                   </div>
-                </>
+                )}
+                {servicesStatus?.headlight_service === IOTFields.state.off && (
+                  <div className="alert alert-warning mt-2" role="alert">
+                    Headlight service is off. Turn it on in the Services page to adjust.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
