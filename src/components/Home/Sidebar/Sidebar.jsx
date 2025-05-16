@@ -10,15 +10,22 @@ import toast from 'react-hot-toast';
 import apiClient from '../../../services/APIClient.jsx';
 import { useUserContext } from '../../../hooks/UserContext.jsx';
 
-import { IOTFields } from '../../../utils/CommonFields.jsx'
+import { IOTFields } from '../../../utils/CommonFields.jsx';
 import { ErrorMessages, SuccessMessages } from '../../../utils/CommonMessages.jsx';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const SideBar = () => {
   const navigate = useNavigate();
   const { servicesStatus, setServicesStatus, clearUserContext } = useUserContext();
 
-  const [ systemStatus, setSystemStatus ] = useState(servicesStatus?.system_status);
+  const [systemStatus, setSystemStatus] = useState(servicesStatus?.system_status);
+
+  // Sync systemStatus with servicesStatus.system_status
+  useEffect(() => {
+    if (servicesStatus?.system_status !== undefined) {
+      setSystemStatus(servicesStatus.system_status);
+    }
+  }, [servicesStatus?.system_status]);
 
   useEffect(() => {
     setSystemStatus(servicesStatus?.system_status);
@@ -50,6 +57,11 @@ const SideBar = () => {
 
   const handleSystemToggle = async (value) => {
     const command = value ? IOTFields.state.on : IOTFields.state.off;
+    // Check current system status before toggling
+    if (servicesStatus?.system_status === command) {
+      toast.info(`System is already ${command === IOTFields.state.on ? 'on' : 'off'}`);
+      return;
+    }
 
     try {
       const responseData = await apiClient(
@@ -62,24 +74,22 @@ const SideBar = () => {
         }
       );
 
-      setServicesStatus(prev => {
-        return {
-          ...prev,
-          ...Object.fromEntries(
-              Object.keys(prev)
-                .filter(key => key?.includes(IOTFields.target.service) || key?.includes(IOTFields.target.system))
-                .map(key => [key, value ? IOTFields.state.on : IOTFields.state.off])
-          ),
-        };
-      });
+      setServicesStatus((prev) => ({
+        ...prev,
+        ...Object.fromEntries(
+          Object.keys(prev)
+            .filter(key => key?.includes(IOTFields.target.service) || key?.includes(IOTFields.target.system))
+            .map(key => [key, command])
+        ),
+      }));
 
+      setSystemStatus(command);
       console.log(`handleSystemToggle's response:`, responseData);
-      toast.success(value ? SuccessMessages.controlIot.systemOn : SuccessMessages.controlIot.systemOff);
+      toast.success(command === IOTFields.state.on ? SuccessMessages.controlIot.systemOn : SuccessMessages.controlIot.systemOff);
     } catch (error) {
-      console.log('servicesStatus.system_status', servicesStatus?.system_status);
-      setSystemStatus(servicesStatus?.system_status);
       console.error(`handleSystemToggle's error:`, error);
-      toast.error(`${ErrorMessages.iot.toggle}${error.message}`)
+      setSystemStatus(servicesStatus?.system_status); // Revert to original status on error
+      toast.error(`${ErrorMessages.iot.toggle}${error.message}`);
     }
   };
 

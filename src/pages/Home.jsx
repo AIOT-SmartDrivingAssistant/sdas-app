@@ -22,7 +22,7 @@ const Home = () => {
     setServicesStatus,
     sensorsData,
     setSensorsData,
-
+    drowsinessWarning,
     initializeApp,
     isFirstLoad,
   } = useUserContext();
@@ -37,16 +37,8 @@ const Home = () => {
     headlightBrightness: 0,
     driverStatus: IOTFields.state.alert,
     airCond: {
-      status: IOTFields.state.manual,
-      temperature: 1,
+      temperature: 0,
     },
-  });
-
-  const [loading, setLoading] = React.useState({
-    air_cond_service: false,
-    distance_service: false,
-    headlight_service: false,
-    drowsiness_service: false,
   });
 
   const [errors, setErrors] = React.useState({
@@ -149,13 +141,6 @@ const Home = () => {
         drowsiness_service: null,
       }));
 
-      setLoading({
-        air_cond_service: servicesStatus?.air_cond_service === IOTFields.state.on,
-        distance_service: servicesStatus?.distance_service === IOTFields.state.on,
-        headlight_service: servicesStatus?.headlight_service === IOTFields.state.on,
-        drowsiness_service: servicesStatus?.drowsiness_service === IOTFields.state.on,
-      });
-
       try {
         const activeSensorTypes = [];
         const serviceToSensors = {
@@ -171,12 +156,6 @@ const Home = () => {
         });
 
         if (activeSensorTypes.length === 0) {
-          setLoading({
-            air_cond_service: false,
-            distance_service: false,
-            headlight_service: false,
-            drowsiness_service: false,
-          });
           return true;
         }
 
@@ -228,14 +207,6 @@ const Home = () => {
           headlight_service: servicesStatus?.headlight_service === IOTFields.state.on ? errorMessage : null,
         }));
       }
-      finally {
-        setLoading({
-          air_cond_service: false,
-          distance_service: false,
-          headlight_service: false,
-          drowsiness_service: false,
-        });
-      }
     };
 
     handleGetSensorData();
@@ -243,9 +214,22 @@ const Home = () => {
 
     return () => {
       clearInterval(intervalId);
-    }
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [servicesStatus])
+  }, [servicesStatus]);
+
+  // useEffect to update UI when air conditioning service is off (no API call)
+  useEffect(() => {
+    if (servicesStatus?.air_cond_service === IOTFields.state.off) {
+      setData((prevData) => ({
+        ...prevData,
+        airCond: {
+          ...prevData.airCond,
+          temperature: 0,
+        },
+      }));
+    }
+  }, [servicesStatus?.air_cond_service]);
 
   const getDistanceWarning = (distance) => {
     if (distance < 50) return { class: 'bg-danger', message: 'Danger' };
@@ -253,32 +237,21 @@ const Home = () => {
     return { class: 'bg-success', message: 'Safe' };
   };
 
-  const changeACMode = (mode) => {
-    setData((prevData) => ({
-      ...prevData,
-      airCond: {
-        ...prevData.airCond,
-        status: mode,
-      },
-    }));
-  };
-
   const sendACTemperatureToBackend = async (temperature) => {
-    if (servicesStatus?.air_cond_service !== IOTFields.state.on) return;
-
     const constrainedValue = Math.max(0, Math.min(100, temperature));
 
     try {
-      setLoading((prev) => ({ ...prev, air_cond_service: true }));
-
       const responseData = await apiClient(
         'PATCH',
         `${import.meta.env.VITE_SERVER_URL}/iot/service`,
         {
+          headers: {
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify({
             service_type: IOTFields.services.air_cond_service,
             value: constrainedValue.toString(),
-          })
+          }),
         }
       );
 
@@ -300,21 +273,24 @@ const Home = () => {
         ...prev,
         air_cond_service: `${ErrorMessages.iot.controlService}${error.message}`,
       }));
-    } finally {
-      setLoading((prev) => ({ ...prev, air_cond_service: false }));
     }
   };
 
   const setACTemperature = (temp) => {
-    const newTemp = Math.max(0, Math.min(100, temp));
-    setData((prevData) => ({
-      ...prevData,
-      airCond: {
-        ...prevData.airCond,
-        temperature: newTemp,
-      },
-    }));
-    sendACTemperatureToBackend(newTemp);
+    const validTemps = [0, 25, 50, 75, 100];
+    const newTemp = validTemps.includes(temp) ? temp : 0;
+    if (servicesStatus?.air_cond_service === IOTFields.state.on) {
+          setData((prevData) => ({
+            ...prevData,
+            airCond: {
+              ...prevData.airCond,
+              temperature: newTemp,
+            },
+          }));
+          sendACTemperatureToBackend(newTemp);
+        } else {
+          toast.error('Air conditioning service is off. Please turn it on to adjust temperature.');
+        }
   };
 
   const getDriverStatusColor = () => {
@@ -374,28 +350,28 @@ const Home = () => {
     }
   };
 
+  const getCircleColor = () => {
+    return drowsinessWarning ? 'bg-danger' : 'bg-success';
+  };
+
+  const getCircleText = () => {
+    return drowsinessWarning ? 'Danger' : 'Safe';
+  };
+
   return (
     <div className="container-fluid p-0">
       {errors.general && <div className="alert alert-danger">{errors.general}</div>}
 
       <div className="row g-3 mb-3">
-        {servicesStatus?.air_cond_service && (
+        {servicesStatus?.air_cond_service !== undefined && (
           <div className="col-12 col-lg-4">
             <div
               className={[
                 styles.panel,
                 'p-4 shadow bg-white rounded',
-                servicesStatus?.air_cond_service !== IOTFields.state.on ? styles.blurred : '',
               ].join(' ')}
             >
               <h4 className="mb-3">Air conditioning</h4>
-              {loading.air_cond_service ? (
-                <div className="text-center">
-                  <div className="spinner-border" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                </div>
-              ) : (
                 <>
                   <div className="row">
                     <div className="mb-3 col-md-6">
@@ -407,51 +383,36 @@ const Home = () => {
                       <p className="fw-bold fs-2 mb-1">{data.humidity?.toFixed(1)}%</p>
                     </div>
                   </div>
-                  <div className="mb-2">
-                    <p className="mb-2 small text-body-tertiary">Air conditioning mode</p>
-                    <div className="d-flex flex-wrap">
-                      <button
-                        className={`rounded btn ${
-                          data.airCond?.status === IOTFields.mode.manual ? 'bg-primary-btn' : 'bg-gray-200'
-                        } me-2 mb-2 px-3 py-1`}
-                        onClick={() => changeACMode(IOTFields.mode.manual)}
-                        disabled={servicesStatus?.air_cond_service !== IOTFields.state.on}
-                      >
-                        Manual
-                      </button>
-                      <button
-                        className={`rounded btn ${
-                          data.airCond?.status === IOTFields.state.on ? 'bg-primary-btn' : 'bg-gray-200'
-                        } mb-2 px-3 py-1`}
-                        onClick={() => changeACMode(IOTFields.state.on)}
-                          disabled={servicesStatus?.air_cond_service !== IOTFields.state.on}
-                      >
-                        Off
-                      </button>
-                    </div>
-                      {data.airCond.status !== IOTFields.state.off && (
-                        <div className="my-3">
-                          <span className="me-2">Set:</span>
-                          <button
-                            className="btn btn-outline-secondary py-1 bg-gray-200 rounded"
-                            onClick={() => setACTemperature(data.airCond.temperature - 1)}
-                            disabled={servicesStatus?.air_cond_service !== IOTFields.state.on}
-                          >
-                            -
-                          </button>
-                          <span className="mx-2">{data.airCond.temperature}</span>
-                          <button
-                            className="btn btn-outline-secondary py-1 bg-gray-200 rounded"
-                            onClick={() => setACTemperature(data.airCond.temperature + 1)}
-                            disabled={servicesStatus?.air_cond_service !== 'on'}
-                          >
-                            +
-                          </button>
+                  { servicesStatus?.system_status === IOTFields.state.on && (
+                    <div className="mb-2">
+                      <div className="my-3">
+                        <p className="mb-2 small text-body-tertiary">Set Temperature</p>
+                        <div className="btn-group small d-flex w-100" role="group">
+                          {[0, 25, 50, 75, 100].map((level, index) => (
+                            <button
+                              key={level}
+                              type="button"
+                              className={`flex-fill btn ${
+                                data.airCond.temperature === level
+                                  ? 'bg-primary-btn'
+                                  : 'bg-gray-200'
+                              } ${index === 0 ? 'rounded-l' : index === 4 ? 'rounded-r' : ''}`}
+                              onClick={() => setACTemperature(level)}
+                              disabled={servicesStatus?.air_cond_service !== IOTFields.state.on}
+                            >
+                              {level}
+                            </button>
+                          ))}
                         </div>
-                      )}
-                  </div>
+                      </div>
+                    </div>
+                  )}
+                  {servicesStatus?.air_cond_service === IOTFields.state.off && (
+                    <div className="alert alert-warning mt-2" role="alert">
+                      Air conditioning service is off. Turn it on in the Services page to adjust.
+                    </div>
+                  )}
                 </>
-              )}
             </div>
           </div>
         )}
@@ -466,13 +427,6 @@ const Home = () => {
               ].join(' ')}
             >
               <h4 className="mb-3">Driver Monitoring</h4>
-              {loading.drowsiness_service ? (
-                <div className="text-center">
-                  <div className="spinner-border" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                </div>
-              ) : (
                 <>
                   <div className="mb-3 d-flex align-items-center">
                     <div
@@ -487,18 +441,18 @@ const Home = () => {
                   </div>
                   <div className="mb-3">
                     <p className="mb-2 small text-body-tertiary">Sleepiness Detection Sensitivity</p>
-                    <div className="d-flex align-items-center">
-                      <span className="me-2 small">Low</span>
-                      <input
-                        type="range"
-                        min="0"
-                        max="10"
-                        value="3"
-                        onChange={() => {}}
-                        className="mx-2 flex-grow-1"
-                        disabled={servicesStatus?.drowsiness_service !== IOTFields.state.on}
-                      />
-                      <span className="ms-2 small">High</span>
+                    <div
+                      className={`rounded-circle d-flex justify-content-center align-items-center ${getCircleColor()}`}
+                      style={{
+                        width: '100px',
+                        height: '100px',
+                        margin: '0 auto',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        fontSize: '1.2rem',
+                      }}
+                    >
+                      {getCircleText()}
                     </div>
                   </div>
                   <div className="bg-light rounded p-3">
@@ -511,7 +465,6 @@ const Home = () => {
                     </ul>
                   </div>
                 </>
-              )}
             </div>
           </div>
         )}
@@ -526,13 +479,6 @@ const Home = () => {
               ].join(' ')}
             >
               <h4 className="mb-3">Smart Headlights</h4>
-              {loading.headlight_service ? (
-                <div className="text-center">
-                  <div className="spinner-border" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                </div>
-              ) : (
                 <>
                   <div>
                     <p className="mb-2 small text-body-tertiary">Ambient Light Intensity</p>
@@ -577,7 +523,6 @@ const Home = () => {
                     </div>
                   </div>
                 </>
-              )}
             </div>
           </div>
         )}
@@ -592,13 +537,6 @@ const Home = () => {
               ].join(' ')}
             >
               <h4 className="mb-3">Distance Sensor</h4>
-              {loading.dist_service ? (
-                <div className="text-center">
-                  <div className="spinner-border" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                </div>
-              ) : (
                 <div className="d-flex justify-content-between align-items-center">
                   <div>
                     <>
@@ -615,7 +553,6 @@ const Home = () => {
                     <i className="fa-solid fa-bolt"></i>
                   </div>
                 </div>
-              )}
             </div>
           </div>
         )}

@@ -5,7 +5,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import apiClient from '../services/APIClient.jsx';
 
 import { IOTFields, DbDocuments, LocalStorageFields } from '../utils/CommonFields.jsx';
-import { ErrorMessages } from '../utils/CommonMessages.jsx'
+import { ErrorMessages } from '../utils/CommonMessages.jsx';
 
 const UserContext = createContext();
 
@@ -57,6 +57,7 @@ export const UserProvider = ({ children }) => {
   const [eventSource, setEventSource] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentNotification, setCurrentNotification] = useState(null);
+  const [drowsinessWarning, setDrowsinessWarning] = useState(false);
 
   const [isFirstLoad, setIsFirstLoad] = useState(true);
 
@@ -86,17 +87,17 @@ export const UserProvider = ({ children }) => {
     localStorage.setItem(LocalStorageFields.servicesStatus, JSON.stringify(servicesStatus));
   }, [servicesStatus]);
   
-    useEffect(() => {
-      localStorage.setItem(LocalStorageFields.sensorsData, JSON.stringify(sensorsData));
-    }, [sensorsData]);
+  useEffect(() => {
+    localStorage.setItem(LocalStorageFields.sensorsData, JSON.stringify(sensorsData));
+  }, [sensorsData]);
 
   useEffect(() => {
     localStorage.setItem(LocalStorageFields.actionHistory, JSON.stringify(actionHistory));
   }, [actionHistory]);
 
   useEffect(() => {
-    localStorage.setItem(LocalStorageFields.isFirstLoad, isFirstLoad)
-  })
+    localStorage.setItem(LocalStorageFields.isFirstLoad, isFirstLoad);
+  }, [isFirstLoad]);
 
   const initializeApp = async () => {
     try {
@@ -164,6 +165,12 @@ export const UserProvider = ({ children }) => {
     addActionHistory([newNotification]);
     setCurrentNotification(newNotification);
     setIsModalOpen(true);
+
+    // Check for drowsiness warning
+    if (newNotification.service_type === 'drowsiness' && newNotification.description.toLowerCase().includes('warning')) {
+      setDrowsinessWarning(true);
+      setTimeout(() => setDrowsinessWarning(false), 5000); // Reset after 5 seconds
+    }
   };
 
   const addActionHistory = (newActions) => {
@@ -178,6 +185,7 @@ export const UserProvider = ({ children }) => {
     setSensorsData(null);
     setActionHistory(null);
     setIsFirstLoad(true);
+    setDrowsinessWarning(false);
 
     localStorage.removeItem(LocalStorageFields.userData);
     localStorage.removeItem(LocalStorageFields.userAvatar);
@@ -218,6 +226,8 @@ export const UserProvider = ({ children }) => {
     initializeApp,
     isFirstLoad,
     setIsFirstLoad,
+    drowsinessWarning,
+    setDrowsinessWarning,
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
