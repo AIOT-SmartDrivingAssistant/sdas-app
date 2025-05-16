@@ -150,7 +150,7 @@ const Home = () => {
 
       setLoading({
         air_cond_service: servicesStatus?.air_cond_service === IOTFields.state.on,
-        distance_service: servicesStatus?.dist_service === IOTFields.state.on,
+        distance_service: servicesStatus?.distance_service === IOTFields.state.on,
         headlight_service: servicesStatus?.headlight_service === IOTFields.state.on,
         drowsiness_service: servicesStatus?.drowsiness_service === IOTFields.state.on,
       });
@@ -158,9 +158,9 @@ const Home = () => {
       try {
         const activeSensorTypes = [];
         const serviceToSensors = {
-          air_cond_service: [SensorTypes.temp, SensorTypes.humid],
-          headlight_service: [SensorTypes.lux],
-          distance_service: [SensorTypes.dis],
+          air_cond_service: [IOTFields.sensors.temp, IOTFields.sensors.humid],
+          headlight_service: [IOTFields.sensors.lux],
+          distance_service: [IOTFields.sensors.distance],
         };
 
         Object.keys(serviceToSensors).forEach((service) => {
@@ -202,7 +202,7 @@ const Home = () => {
               newData.humidity = value;
               newSensorData.humidity = value;
               break;
-            case IOTFields.sensors.dist:
+            case IOTFields.sensors.distance:
               newData.distance = value;
               newSensorData.distance = value;
               break;
@@ -223,7 +223,7 @@ const Home = () => {
         setErrors((prev) => ({
           ...prev,
           air_cond_service: servicesStatus?.air_cond_service === IOTFields.state.on ? errorMessage : null,
-          distance_service: servicesStatus?.dist_service === IOTFields.state.on ? errorMessage : null,
+          distance_service: servicesStatus?.distance_service === IOTFields.state.on ? errorMessage : null,
           headlight_service: servicesStatus?.headlight_service === IOTFields.state.on ? errorMessage : null,
         }));
       }
@@ -394,7 +394,7 @@ const Home = () => {
                           data.airCond?.status === IOTFields.mode.manual ? 'bg-primary-btn' : 'bg-gray-200'
                         } me-2 mb-2 px-3 py-1`}
                         onClick={() => changeACMode(IOTFields.mode.manual)}
-                        disabled={servicesStatus?.air_cond_service !== 'on'}
+                        disabled={servicesStatus?.air_cond_service !== IOTFields.state.on}
                       >
                         Manual
                       </button>
@@ -561,13 +561,13 @@ const Home = () => {
           </div>
         )}
 
-        {servicesStatus?.dist_service && (
+        {servicesStatus?.distance_service && (
           <div className="col-12 col-lg-4">
             <div
               className={[
                 styles.panel,
                 'p-4 shadow bg-white rounded',
-                servicesStatus?.dist_service !== IOTFields.state.on ? styles.blurred : '',
+                servicesStatus?.distance_service !== IOTFields.state.on ? styles.blurred : '',
               ].join(' ')}
             >
               <h4 className="mb-3">Distance Sensor</h4>

@@ -15,6 +15,7 @@ const SuccessMessages = {
         systemOn: "System turn ON successfully.",
         systemOff: "System turn OFF successfully.",
         controlService: "Control service successfully.",
+        setThreshold: "Set service's threshold successfully."
     }
 }
 
@@ -31,7 +32,8 @@ const ErrorMessages = {
     },
     iot: {
         toggle: "Toggle IoT system fail: ",
-        controlService: "Control service fail: "
+        controlService: "Control service fail: ",
+        setThreshold: "Set service's threshold fail: "
     }
 }
 

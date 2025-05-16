@@ -3,10 +3,10 @@ const IOTFields = {
         headlight_service: "headlight_service",
         air_cond_service: "air_cond_service",
         drowsiness_service: "drowsiness_service",
-        dist_service: "dist_service",
+        distance_service: "distance_service",
     },
     sensors: {
-        dist: "dist",
+        distance: "dis",
         temp: "temp",
         humid: "humid",
         lux: "lux",

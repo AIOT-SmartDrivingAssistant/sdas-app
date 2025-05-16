@@ -18,11 +18,11 @@ function NotificationModal() {
         {currentNotification ? (
           <div className="text-muted mb-3">
             <p>
-              <strong>Service:</strong> {currentNotification.service_type}
+              <strong>Service:</strong> {currentNotification?.service_type}
               <br />
-              <strong>Message:</strong> {currentNotification.notification}
+              <strong>Description:</strong> {currentNotification?.description}
               <br />
-              <strong>Time:</strong> {currentNotification.timestamp}
+              <strong>Time:</strong> {currentNotification?.timestamp}
             </p>
           </div>
         ) : (

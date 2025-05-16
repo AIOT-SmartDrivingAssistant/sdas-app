@@ -30,7 +30,7 @@ function Services() {
     air_cond_service: {},
     drowsiness_service: {},
     headlight_service: {},
-    dist_service: {},
+    distance_service: {},
   });
 
 
@@ -38,7 +38,7 @@ function Services() {
     [IOTFields.services.air_cond_service]: { title: 'Air Conditioning', description: 'Automatic air conditioning', thresholds:['Temperature Threshold','Humidity Threshold']},
     [IOTFields.services.drowsiness_service]: { title: 'Driver Monitoring', description: "Check the driver's status", thresholds:['Drowsiness Threshold'] },
     [IOTFields.services.headlight_service]: { title: 'Smart Headlights', description: "Adjust light when it's dark", thresholds:['Lux Threshold'] },
-    [IOTFields.services.dist_service]: { title: 'Distance', description: 'Distance between objects', thresholds:['Distance Threshold'] },
+    [IOTFields.services.distance_service]: { title: 'Distance', description: 'Distance between objects', thresholds:['Distance Threshold'] },
   };
 
   const handleToggleChange = async (serviceType, value) => {
@@ -85,6 +85,7 @@ function Services() {
     const thresholds = displayInfo.thresholds;
 
     // Đảm bảo thresholdValues[serviceType] đã có key cho từng threshold
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {
       setThresholdValues((prev) => {
         if (!prev[serviceType] || Object.keys(prev[serviceType]).length !== thresholds.length) {
@@ -96,7 +97,6 @@ function Services() {
         }
         return prev;
       });
-      // eslint-disable-next-line
     }, [serviceType, thresholds]);
 
     const handleThresholdChange = async (th, e) => {
@@ -127,10 +127,11 @@ function Services() {
             body: JSON.stringify(formData),
           }
         );
-        console.log('Service response:', responseData);
-        toast.success('Threshold updated!');
+        console.log(`handleThresholdBlur's response:`, responseData);
+        toast.success(SuccessMessages.controlIot.setThreshold);
       } catch (error) {
-        toast.error('Failed to update threshold');
+        console.error(`handleThresholdBlur's error:`, error);
+        toast.error(`${ErrorMessages.iot.setThreshold}${error.message}`);
       }
   };
 
