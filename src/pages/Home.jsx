@@ -22,7 +22,7 @@ const Home = () => {
     setServicesStatus,
     sensorsData,
     setSensorsData,
-
+    drowsinessWarning,
     initializeApp,
     isFirstLoad,
   } = useUserContext();
@@ -325,6 +325,14 @@ const Home = () => {
     }
   };
 
+  const getCircleColor = () => {
+    return drowsinessWarning ? 'bg-danger' : 'bg-success';
+  };
+
+  const getCircleText = () => {
+    return drowsinessWarning ? 'Danger' : 'Safe';
+  };
+
   return (
     <div className="container-fluid p-0">
       {errors.general && <div className="alert alert-danger">{errors.general}</div>}
@@ -403,18 +411,18 @@ const Home = () => {
                   </div>
                   <div className="mb-3">
                     <p className="mb-2 small text-body-tertiary">Sleepiness Detection Sensitivity</p>
-                    <div className="d-flex align-items-center">
-                      <span className="me-2 small">Low</span>
-                      <input
-                        type="range"
-                        min="0"
-                        max="10"
-                        value="3"
-                        onChange={() => {}}
-                        className="mx-2 flex-grow-1"
-                        disabled={servicesStatus?.drowsiness_service !== IOTFields.state.on}
-                      />
-                      <span className="ms-2 small">High</span>
+                    <div
+                      className={`rounded-circle d-flex justify-content-center align-items-center ${getCircleColor()}`}
+                      style={{
+                        width: '100px',
+                        height: '100px',
+                        margin: '0 auto',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        fontSize: '1.2rem',
+                      }}
+                    >
+                      {getCircleText()}
                     </div>
                   </div>
                   <div className="bg-light rounded p-3">
