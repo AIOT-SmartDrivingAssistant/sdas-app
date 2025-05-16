@@ -217,9 +217,14 @@ const Home = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [servicesStatus]);
 
-  // useEffect to update UI when air conditioning service is off (no API call)
+  // useEffect to reset airCond.temperature when system and service are off
   useEffect(() => {
-    if (servicesStatus?.air_cond_service === IOTFields.state.off) {
+    if (
+      servicesStatus?.system_status === IOTFields.state.off &&
+      servicesStatus?.air_cond_service === IOTFields.state.off &&
+      data.airCond.temperature !== 0
+    ) {
+      console.log('Resetting airCond.temperature to 0 because system and service are off');
       setData((prevData) => ({
         ...prevData,
         airCond: {
@@ -228,7 +233,46 @@ const Home = () => {
         },
       }));
     }
-  }, [servicesStatus?.air_cond_service]);
+  }, [servicesStatus?.system_status, servicesStatus?.air_cond_service, data.airCond.temperature]);
+
+  // useEffect to fetch AC status periodically
+  useEffect(() => {
+    const fetchACStatus = async () => {
+      if (servicesStatus?.system_status !== IOTFields.state.on) return;
+
+      try {
+        const acStatus = await apiClient(
+          'GET',
+          `${import.meta.env.VITE_SERVER_URL}/iot/service?service_type=${IOTFields.services.air_cond_service}`,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        console.log('fetchACStatus response:', acStatus);
+        setServicesStatus((prev) => ({
+          ...prev,
+          air_cond_service: acStatus.service_status || prev.air_cond_service,
+        }));
+        setData((prevData) => ({
+          ...prevData,
+          airCond: {
+            ...prevData.airCond,
+            temperature: parseInt(acStatus.value, 10) || prevData.airCond.temperature,
+          },
+        }));
+      } catch (error) {
+        console.error('Failed to fetch AC status:', error);
+      }
+    };
+
+    fetchACStatus();
+    const intervalId = setInterval(fetchACStatus, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [servicesStatus?.system_status, setServicesStatus, setData]);
 
   const getDistanceWarning = (distance) => {
     if (distance < 50) return { class: 'bg-danger', message: 'Danger' };
@@ -250,6 +294,7 @@ const Home = () => {
           body: JSON.stringify({
             service_type: IOTFields.services.air_cond_service,
             value: constrainedValue.toString(),
+            mode: servicesStatus?.air_cond_service === IOTFields.state.on ? 'auto' : 'manual',
           }),
         }
       );
@@ -257,11 +302,19 @@ const Home = () => {
       toast.success(SuccessMessages.controlIot.controlService);
       console.log(`sendACTemperatureToBackend's response:`, responseData);
 
+      if (responseData?.service_status) {
+        setServicesStatus((prev) => ({
+          ...prev,
+          air_cond_service: responseData.service_status,
+        }));
+      }
+
+      const confirmedTemperature = responseData?.value ? parseInt(responseData.value, 10) : constrainedValue;
       setData((prevData) => ({
         ...prevData,
         airCond: {
           ...prevData.airCond,
-          temperature: constrainedValue,
+          temperature: confirmedTemperature,
         },
       }));
     } catch (error) {
@@ -278,18 +331,28 @@ const Home = () => {
   const setACTemperature = (temp) => {
     const validTemps = [0, 25, 50, 75, 100];
     const newTemp = validTemps.includes(temp) ? temp : 0;
-    if (servicesStatus?.air_cond_service === IOTFields.state.on) {
-          setData((prevData) => ({
-            ...prevData,
-            airCond: {
-              ...prevData.airCond,
-              temperature: newTemp,
-            },
-          }));
-          sendACTemperatureToBackend(newTemp);
-        } else {
-          toast.error('Air conditioning service is off. Please turn it on to adjust temperature.');
-        }
+    console.log('setACTemperature:', {
+      newTemp,
+      system_status: servicesStatus?.system_status,
+      air_cond_service: servicesStatus?.air_cond_service,
+      currentTemperature: data.airCond.temperature,
+    });
+
+    if (servicesStatus?.system_status === IOTFields.state.on) {
+      setData((prevData) => {
+        console.log('Updating data.airCond.temperature to:', newTemp);
+        return {
+          ...prevData,
+          airCond: {
+            ...prevData.airCond,
+            temperature: newTemp,
+          },
+        };
+      });
+      sendACTemperatureToBackend(newTemp);
+    } else {
+      toast.error('System is off. Please turn it on to adjust temperature.');
+    }
   };
 
   const getDriverStatusColor = () => {
@@ -305,11 +368,58 @@ const Home = () => {
     }
   };
 
-  const setHeadlightIntensity = (level) => {
+  const setHeadlightIntensity = async (level) => {
+    if (servicesStatus?.system_status !== IOTFields.state.on) {
+      toast.error('System is off. Please turn it on to adjust headlights.');
+      return;
+    }
+
+    console.log('setHeadlightIntensity:', {
+      level,
+      system_status: servicesStatus?.system_status,
+      headlight_service: servicesStatus?.headlight_service,
+    });
+
     setData((prevData) => ({
       ...prevData,
       headlightBrightness: level,
     }));
+
+    try {
+      const responseData = await apiClient(
+        'PATCH',
+        `${import.meta.env.VITE_SERVER_URL}/iot/service`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            service_type: IOTFields.services.headlight_service,
+            value: level.toString(),
+            mode: servicesStatus?.headlight_service === IOTFields.state.on ? 'auto' : 'manual',
+          }),
+        }
+      );
+
+      toast.success(SuccessMessages.controlIot.controlService);
+      console.log(`setHeadlightIntensity response:`, responseData);
+
+      if (responseData?.service_status) {
+        setServicesStatus((prev) => ({
+          ...prev,
+          headlight_service: responseData.service_status,
+        }));
+      }
+
+      const confirmedLevel = responseData?.value ? parseInt(responseData.value, 10) : level;
+      setData((prevData) => ({
+        ...prevData,
+        headlightBrightness: confirmedLevel,
+      }));
+    } catch (error) {
+      toast.error(`${ErrorMessages.iot.controlService}${error.message}`);
+      console.error(`setHeadlightIntensity error:`, error.message);
+    }
   };
 
   const getHeadlightStatusText = () => {
@@ -362,10 +472,13 @@ const Home = () => {
                       <p className="fw-bold fs-2 mb-1">{data.humidity?.toFixed(1)}%</p>
                     </div>
                   </div>
-                  { servicesStatus?.system_status === IOTFields.state.on && (
+                  {servicesStatus?.system_status === IOTFields.state.on && (
                     <div className="mb-2">
                       <div className="my-3">
                         <p className="mb-2 small text-body-tertiary">Set Temperature</p>
+                        <p className="mb-2 small text-body-tertiary">
+                          Status: {servicesStatus?.air_cond_service === IOTFields.state.on ? 'Auto (Sensor)' : 'Manual'}
+                        </p>
                         <div className="btn-group small d-flex w-100" role="group">
                           {[0, 25, 50, 75, 100].map((level, index) => (
                             <button
@@ -377,7 +490,7 @@ const Home = () => {
                                   : 'bg-gray-200'
                               } ${index === 0 ? 'rounded-l' : index === 4 ? 'rounded-r' : ''}`}
                               onClick={() => setACTemperature(level)}
-                              disabled={servicesStatus?.air_cond_service !== IOTFields.state.on}
+                              disabled={servicesStatus?.air_cond_service === IOTFields.state.on}
                             >
                               {level}
                             </button>
@@ -386,9 +499,9 @@ const Home = () => {
                       </div>
                     </div>
                   )}
-                  {servicesStatus?.air_cond_service === IOTFields.state.off && (
+                  {servicesStatus?.system_status === IOTFields.state.off && (
                     <div className="alert alert-warning mt-2" role="alert">
-                      Air conditioning service is off. Turn it on in the Services page to adjust.
+                      System is off. Turn it on to adjust temperature.
                     </div>
                   )}
                 </>
@@ -454,7 +567,7 @@ const Home = () => {
               className={[
                 styles.panel,
                 'p-4 shadow bg-white rounded',
-                servicesStatus?.headlight_service !== IOTFields.state.on ? styles.blurred : '',
+                servicesStatus?.headlight_service === IOTFields.state.on ? styles.blurred : '',
               ].join(' ')}
             >
               <h4 className="mb-3">Smart Headlights</h4>
@@ -484,16 +597,19 @@ const Home = () => {
                           {getHeadlightStatusText()}
                         </span>
                       </p>
+                      <p className="mb-2 small text-body-tertiary">
+                        Status: {servicesStatus?.headlight_service === IOTFields.state.on ? 'Auto (Sensor)' : 'Manual'}
+                      </p>
                       <div className="btn-group small d-flex w-100" role="group">
                         {[0, 1, 2, 3, 4].map((level) => (
                           <button
                             key={level}
                             type="button"
-                            disabled={servicesStatus?.headlight_service !== IOTFields.state.on}
                             className={`flex-fill btn ${
                               data.headlightBrightness === level ? 'bg-primary-btn' : 'bg-gray-200'
                             } ${level === 0 ? 'rounded-l' : level === 4 ? 'rounded-r' : ''}`}
                             onClick={() => setHeadlightIntensity(level)}
+                            disabled={servicesStatus?.headlight_service === IOTFields.state.on}
                           >
                             {level}
                           </button>
