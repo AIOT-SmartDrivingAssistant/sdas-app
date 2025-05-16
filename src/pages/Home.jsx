@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import apiClient from '../services/APIClient.jsx';
 import { useUserContext } from '../hooks/UserContext.jsx';
 
-import { IOTFields } from '../utils/CommonFields.jsx';
+import { DbDocuments, IOTFields } from '../utils/CommonFields.jsx';
 import { ErrorMessages, SuccessMessages } from '../utils/CommonMessages.jsx';
 
 const Home = () => {
@@ -255,7 +255,6 @@ const Home = () => {
         }
       );
 
-      toast.success(SuccessMessages.controlIot.controlService);
       console.log(`sendACTemperatureToBackend's response:`, responseData);
 
       setData((prevData) => ({
@@ -264,6 +263,10 @@ const Home = () => {
           ...prevData.airCond,
           temperature: constrainedValue,
         },
+      }));
+      setServicesStatus((prev) => ({
+        ...prev,
+        [DbDocuments.servicesStatus.air_cond_temp]: constrainedValue
       }));
     } catch (error) {
       toast.error(`${ErrorMessages.iot.controlService}${error.message}`);
@@ -274,23 +277,6 @@ const Home = () => {
         air_cond_service: `${ErrorMessages.iot.controlService}${error.message}`,
       }));
     }
-  };
-
-  const setACTemperature = (temp) => {
-    const validTemps = [0, 25, 50, 75, 100];
-    const newTemp = validTemps.includes(temp) ? temp : 0;
-    if (servicesStatus?.air_cond_service === IOTFields.state.on) {
-          setData((prevData) => ({
-            ...prevData,
-            airCond: {
-              ...prevData.airCond,
-              temperature: newTemp,
-            },
-          }));
-          sendACTemperatureToBackend(newTemp);
-        } else {
-          toast.error('Air conditioning service is off. Please turn it on to adjust temperature.');
-        }
   };
 
   const getDriverStatusColor = () => {
@@ -363,7 +349,7 @@ const Home = () => {
       {errors.general && <div className="alert alert-danger">{errors.general}</div>}
 
       <div className="row g-3 mb-3">
-        {servicesStatus?.air_cond_service !== undefined && (
+        {servicesStatus?.air_cond_service && (
           <div className="col-12 col-lg-4">
             <div
               className={[
@@ -397,7 +383,7 @@ const Home = () => {
                                   ? 'bg-primary-btn'
                                   : 'bg-gray-200'
                               } ${index === 0 ? 'rounded-l' : index === 4 ? 'rounded-r' : ''}`}
-                              onClick={() => setACTemperature(level)}
+                              onClick={() => sendACTemperatureToBackend(level)}
                               disabled={servicesStatus?.air_cond_service !== IOTFields.state.on}
                             >
                               {level}

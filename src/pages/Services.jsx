@@ -157,7 +157,7 @@ function Services() {
       const val = Number(e.target.value);
       const formData = {
         service_type: threshold,
-        value: val
+        value: val.toString()
       };
       try {
         const responseData = await apiClient(
@@ -181,6 +181,7 @@ function Services() {
         console.log(`handleThresholdBlur's response:`, responseData);
         toast.success(SuccessMessages.controlIot.setThreshold);
       } catch (error) {
+        updateThresholdValues(servicesStatus);
         console.error(`handleThresholdBlur's error:`, error);
         toast.error(`${ErrorMessages.iot.setThreshold}${error.message}`);
       }
@@ -197,7 +198,7 @@ function Services() {
                 value={thresholdValues[serviceType][threshold] || 0}
                 onChange={(e) => handleThresholdChange(threshold, e)}
                 onBlur={(e) => handleThresholdBlur(threshold, e)}
-                // disabled={servicesStatus[serviceType] !== IOTFields.state.on || isLoading[serviceType] || !servicesStatus?.system_status}
+                disabled={servicesStatus[serviceType] !== IOTFields.state.on || isLoading[serviceType] || !servicesStatus?.system_status}
                 placeholder="0"
                 min={1}
                 max={99}

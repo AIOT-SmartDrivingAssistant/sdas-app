@@ -64,7 +64,7 @@ export default function ActivityHistory() {
   useEffect(() => {
     handleGetHistory();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [actionHistory]);
 
   const allActivities = useMemo(() => {
     return actions
