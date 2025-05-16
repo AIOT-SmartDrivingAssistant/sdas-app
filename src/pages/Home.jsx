@@ -44,7 +44,7 @@ const Home = () => {
 
   const [loading, setLoading] = React.useState({
     air_cond_service: false,
-    dist_service: false,
+    distance_service: false,
     headlight_service: false,
     drowsiness_service: false,
   });
@@ -52,7 +52,7 @@ const Home = () => {
   const [errors, setErrors] = React.useState({
     general: null,
     air_cond_service: null,
-    dist_service: null,
+    distance_service: null,
     headlight_service: null,
     drowsiness_service: null,
   });
@@ -143,24 +143,24 @@ const Home = () => {
       setErrors((prev) => ({
         ...prev,
         air_cond_service: null,
-        dist_service: null,
+        distance_service: null,
         headlight_service: null,
         drowsiness_service: null,
       }));
 
-      // setLoading({
-      //   air_cond_service: servicesStatus?.air_cond_service === IOTFields.state.on,
-      //   dist_service: servicesStatus?.dist_service === IOTFields.state.on,
-      //   headlight_service: servicesStatus?.headlight_service === IOTFields.state.on,
-      //   drowsiness_service: servicesStatus?.drowsiness_service === IOTFields.state.on,
-      // });
+      setLoading({
+        air_cond_service: servicesStatus?.air_cond_service === IOTFields.state.on,
+        distance_service: servicesStatus?.dist_service === IOTFields.state.on,
+        headlight_service: servicesStatus?.headlight_service === IOTFields.state.on,
+        drowsiness_service: servicesStatus?.drowsiness_service === IOTFields.state.on,
+      });
 
       try {
         const activeSensorTypes = [];
         const serviceToSensors = {
-          air_cond_service: [IOTFields.sensors.temp, IOTFields.sensors.humid],
-          headlight_service: [IOTFields.sensors.lux],
-          dist_service: [IOTFields.sensors.dist],
+          air_cond_service: [SensorTypes.temp, SensorTypes.humid],
+          headlight_service: [SensorTypes.lux],
+          distance_service: [SensorTypes.dis],
         };
 
         Object.keys(serviceToSensors).forEach((service) => {
@@ -169,15 +169,15 @@ const Home = () => {
           }
         });
 
-        // if (activeSensorTypes.length === 0) {
-        //   setLoading({
-        //     air_cond_service: false,
-        //     dist_service: false,
-        //     headlight_service: false,
-        //     drowsiness_service: false,
-        //   });
-        //   return true;
-        // }
+        if (activeSensorTypes.length === 0) {
+          setLoading({
+            air_cond_service: false,
+            distance_service: false,
+            headlight_service: false,
+            drowsiness_service: false,
+          });
+          return true;
+        }
 
         const sensorTypesParam = activeSensorTypes.join(',');
 
@@ -223,18 +223,18 @@ const Home = () => {
         setErrors((prev) => ({
           ...prev,
           air_cond_service: servicesStatus?.air_cond_service === IOTFields.state.on ? errorMessage : null,
-          dist_service: servicesStatus?.dist_service === IOTFields.state.on ? errorMessage : null,
+          distance_service: servicesStatus?.dist_service === IOTFields.state.on ? errorMessage : null,
           headlight_service: servicesStatus?.headlight_service === IOTFields.state.on ? errorMessage : null,
         }));
       }
-      // finally {
-      //   setLoading({
-      //     air_cond_service: false,
-      //     dist_service: false,
-      //     headlight_service: false,
-      //     drowsiness_service: false,
-      //   });
-      // }
+      finally {
+        setLoading({
+          air_cond_service: false,
+          distance_service: false,
+          headlight_service: false,
+          drowsiness_service: false,
+        });
+      }
     };
 
     handleGetSensorData();

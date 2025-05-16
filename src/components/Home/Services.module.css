@@ -35,3 +35,43 @@
 .servicesToggleLabel {
     flex-grow: 1;
 }
+
+
+.servicesInputNumberLabel {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #222;
+  min-width: 80px;
+  margin-right: 0.5rem;
+}
+
+.servicesInputNumberBox {
+  width: 70px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #fff;
+  font-size: 1rem;
+  color: #222;
+  box-shadow: 2px 4px 8px 0 rgba(0, 0, 0, 0.06);
+  outline: none;
+  transition: border-color 0.2s;
+  text-align: right;
+}
+
+.servicesInputNumberBox:focus {
+  border-color: #0a2b6c;
+  box-shadow: 0 0 0 2px rgba(10, 43, 108, 0.1);
+}
+
+.servicesInputNumberWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.servicesInputNumberGroup {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
