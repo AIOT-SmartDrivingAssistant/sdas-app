@@ -188,7 +188,7 @@ export const UserProvider = ({ children }) => {
     }
 
     // Check for drowsiness warning
-    if (newNotification.service_type === IOTFields.services.drowsiness_service && newNotification.description.toLowerCase().includes('warning')) {
+    if (newNotification.service_type === IOTFields.services.alarm_service && newNotification.description.toLowerCase().includes('warning') && newNotification.description.toLowerCase().includes('drowsiness')) {
       console.log("drowsiness alert");
       setDrowsinessWarning(true);
       setTimeout(() => setDrowsinessWarning(false), 5000); // Reset after 5 seconds

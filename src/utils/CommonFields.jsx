@@ -4,6 +4,7 @@ const IOTFields = {
         air_cond_service: "air_cond_service",
         drowsiness_service: "drowsiness_service",
         distance_service: "distance_service",
+        alarm_service: "alarm_service"
     },
     sensors: {
         distance: "dis",
@@ -19,7 +20,8 @@ const IOTFields = {
     state: {
         on: "on",
         off: "off",
-        alert: "alert",
+        safe: "safe",
+        danger: "danger"
     },
     mode: {
         manual: "manual",

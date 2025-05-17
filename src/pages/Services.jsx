@@ -189,7 +189,7 @@ function Services() {
 
       return (
         <div className={styles.servicesInputNumberWrapper}>
-          {thresholds.map((threshold) => (
+          {thresholds?.map((threshold) => (
             <div key={threshold} className={styles.servicesInputNumberGroup}>
               <span className={styles.servicesInputNumberLabel}>{serviceDisplayNames[serviceType].thresholds[threshold]}</span>
               <input
@@ -198,7 +198,7 @@ function Services() {
                 value={thresholdValues[serviceType][threshold] || 0}
                 onChange={(e) => handleThresholdChange(threshold, e)}
                 onBlur={(e) => handleThresholdBlur(threshold, e)}
-                disabled={isLoading[serviceType] || !servicesStatus?.system_status}
+                disabled={isLoading[serviceType] || servicesStatus[serviceType] !== IOTFields.state.on}
                 placeholder="0"
                 min={1}
                 max={99}
@@ -220,8 +220,8 @@ function Services() {
           role="switch"
           htmlFor={`${serviceType}Toggle`}
         >
-          <h4 className={styles.servicesToggleHeader}>{displayInfo.title}</h4>
-          <div className={styles.servicesToggleText}>{displayInfo.description}</div>
+          <h4 className={styles.servicesToggleHeader}>{displayInfo?.title}</h4>
+          <div className={styles.servicesToggleText}>{displayInfo?.description}</div>
           {renderThresholdInputs(serviceType)}
 
 
@@ -245,7 +245,7 @@ function Services() {
     );
   };
 
-  const serviceTypes = Object.keys(IOTFields.services);
+  const serviceTypes = Object.keys(IOTFields.services).filter((key) => key !== IOTFields.services.alarm_service);
   const servicesPerColumn = Math.ceil(serviceTypes.length / 4);
   const columns = Array.from({ length: 4 }, (_, colIndex) =>
     serviceTypes.slice(colIndex * servicesPerColumn, (colIndex + 1) * servicesPerColumn)

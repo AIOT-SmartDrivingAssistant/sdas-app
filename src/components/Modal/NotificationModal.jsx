@@ -3,6 +3,8 @@ import Button from 'react-bootstrap/Button';
 
 import { useUserContext } from '../../hooks/UserContext.jsx';
 
+import { formatTimestamp } from '../../utils/helpers.jsx';
+
 function NotificationModal() {
   const { isModalOpen, currentNotification, closeModal } = useUserContext();
 
@@ -22,7 +24,7 @@ function NotificationModal() {
               <br />
               <strong>Description:</strong> {currentNotification?.description}
               <br />
-              <strong>Time:</strong> {currentNotification?.timestamp}
+              <strong>Time:</strong> {formatTimestamp(currentNotification?.timestamp)}
             </p>
           </div>
         ) : (

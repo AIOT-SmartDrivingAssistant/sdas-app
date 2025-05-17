@@ -35,7 +35,7 @@ const Home = () => {
     incline: 0,
     headlightMode: IOTFields.mode.manual,
     headlightBrightness: 0,
-    driverStatus: IOTFields.state.alert,
+    driverStatus: IOTFields.state.safe,
     airCond: {
       temperature: 0,
     },
@@ -280,19 +280,6 @@ const Home = () => {
     }
   };
 
-  const getDriverStatusColor = () => {
-    switch (data.driverStatus) {
-      case 'Alert':
-        return 'bg-green-500';
-      case 'Tired':
-        return 'bg-yellow-500';
-      case 'Distracted':
-        return 'bg-red-500';
-      default:
-        return 'bg-gray-500';
-    }
-  };
-
   const setHeadlightIntensity = async (level) => {
     try {
       const responseData = await apiClient(
@@ -323,6 +310,20 @@ const Home = () => {
     catch (error) {
       console.error(`setHeadlightIntensity's error:`, error);
     }
+  };
+
+  useEffect(() => {
+    setData((prev) => ({
+      ...prev,
+      driverStatus: drowsinessWarning? IOTFields.state.danger : IOTFields.state.safe
+    }));
+  }, [drowsinessWarning])
+
+  const getDriverStatusColor = () => {
+    if (drowsinessWarning) {
+      return 'bg-red-500';
+    }
+    return 'bg-green-500';
   };
 
   const getCircleColor = () => {
@@ -431,7 +432,7 @@ const Home = () => {
                     </div>
                   </div>
                   <div className="bg-light rounded p-3">
-                    <p className="fw-medium mb-2">Recent Alerts:</p>
+                    <p className="fw-medium mb-2">Recent State:</p>
                     <ul className="list-unstyled mb-0">
                       <li className="text-muted mb-1">
                         {new Date().toLocaleTimeString()} - Driver Status:{' '}
