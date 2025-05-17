@@ -166,8 +166,7 @@ const Home = () => {
           `${import.meta.env.VITE_SERVER_URL}/app/sensor_data?sensor_types=${sensorTypesParam}`
         );
 
-        setData(prevData => {
-          const newData = { ...prevData };
+        const newData = { ...data };
         const newSensorData = { ...sensorsData };
 
         _sensorData.forEach((sensor) => {
@@ -195,15 +194,10 @@ const Home = () => {
               break;
           }
         });
-
-        // Preserve headlightBrightness if not provided by backend
-        if (!_sensorData.some(sensor => sensor.sensor_type === 'headlight_brightness')) {
-            newData.headlightBrightness = prevData.headlightBrightness;
-          }
-          
-          setSensorsData(newSensorData);
-          return newData;
-        });
+        
+        setSensorsData(newSensorData);
+        setData(newData);
+        
       } catch (error) {
         console.error(`handleGetSensorData's error:`, error);
         const errorMessage = error.message;
@@ -217,13 +211,13 @@ const Home = () => {
     };
 
     handleGetSensorData();
-    const intervalId = setInterval(handleGetSensorData, 50000);
+    const intervalId = setInterval(handleGetSensorData, 3000);
 
     return () => {
       clearInterval(intervalId);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [servicesStatus]);
+  }, [servicesStatus?.system_status]);
 
   // useEffect to update UI when air conditioning service is off (no API call)
   useEffect(() => {
@@ -320,27 +314,14 @@ const Home = () => {
         ...prevData,
         headlightBrightness: level,
       }));
+      setServicesStatus((prev) => ({
+        ...prev,
+        [DbDocuments.servicesStatus.headlight_brightness]: level
+      }));
       console.log(`setHeadlightIntensity's response:`, responseData);
     }
     catch (error) {
       console.error(`setHeadlightIntensity's error:`, error);
-    }
-  };
-
-  const getHeadlightStatusText = () => {
-    switch (data.headlightBrightness) {
-      case 0:
-        return 'Off';
-      case 1:
-        return '1';
-      case 2:
-        return '2';
-      case 3:
-        return '3';
-      case 4:
-        return '4';
-      default:
-        return 'Unknown';
     }
   };
 
@@ -387,7 +368,7 @@ const Home = () => {
                               key={level}
                               type="button"
                               className={`flex-fill btn ${
-                                data.airCond.temperature === level
+                                servicesStatus.air_cond_temp === level
                                   ? 'bg-primary-btn'
                                   : 'bg-gray-200'
                               } ${index === 0 ? 'rounded-l' : index === 4 ? 'rounded-r' : ''}`}
@@ -502,7 +483,7 @@ const Home = () => {
                             key={level}
                             type="button"
                             className={`flex-fill btn ${
-                              data.headlightBrightness === level ? 'bg-primary-btn' : 'bg-gray-200'
+                              servicesStatus.headlight_brightness === level ? 'bg-primary-btn' : 'bg-gray-200'
                             } ${index === 0 ? 'rounded-l' : index === 4 ? 'rounded-r' : ''}`}
                             onClick={() => setHeadlightIntensity(level)}
                             disabled={servicesStatus?.system_status !== IOTFields.state.on}

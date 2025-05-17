@@ -166,8 +166,30 @@ export const UserProvider = ({ children }) => {
     setCurrentNotification(newNotification);
     setIsModalOpen(true);
 
+    // Check for device disconnect
+    if (newNotification.service_type === IOTFields.target.system && newNotification.description.toLowerCase().includes('disconnected')) {
+      console.log("turn off all services");
+      setServicesStatus((prev) => ({
+        ...prev,
+        ...Object.fromEntries(
+            Object.keys(prev)
+              .map((key) => {
+                if (key.includes(IOTFields.target.system) || key.includes(IOTFields.target.service)) {
+                  return [key, IOTFields.state.off];
+                }
+                else if (key in [DbDocuments.servicesStatus.air_cond_temp, DbDocuments.servicesStatus.headlight_brightness]) {
+                  return [key, 0];
+                }
+                return null;
+              })
+              .filter(Boolean)
+            )
+      }));
+    }
+
     // Check for drowsiness warning
-    if (newNotification.service_type === 'drowsiness' && newNotification.description.toLowerCase().includes('warning')) {
+    if (newNotification.service_type === IOTFields.services.drowsiness_service && newNotification.description.toLowerCase().includes('warning')) {
+      console.log("drowsiness alert");
       setDrowsinessWarning(true);
       setTimeout(() => setDrowsinessWarning(false), 5000); // Reset after 5 seconds
     }

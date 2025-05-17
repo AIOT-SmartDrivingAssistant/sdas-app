@@ -54,7 +54,7 @@ function LoginForm({ showSignUp }) {
       }
       setEventSource(source);
       
-      toast.success(SuccessMessages.login);
+      toast.success(SuccessMessages.auth.login);
       navigate('/home');
     }
     catch (error) {

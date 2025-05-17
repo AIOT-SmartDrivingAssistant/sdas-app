@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import apiClient from '../../../services/APIClient.jsx';
 import { useUserContext } from '../../../hooks/UserContext.jsx';
 
-import { IOTFields } from '../../../utils/CommonFields.jsx';
+import { DbDocuments, IOTFields } from '../../../utils/CommonFields.jsx';
 import { ErrorMessages, SuccessMessages } from '../../../utils/CommonMessages.jsx';
 
 const SideBar = () => {
@@ -18,13 +18,6 @@ const SideBar = () => {
   const { servicesStatus, setServicesStatus, clearUserContext } = useUserContext();
 
   const [systemStatus, setSystemStatus] = useState(servicesStatus?.system_status);
-
-  // Sync systemStatus with servicesStatus.system_status
-  useEffect(() => {
-    if (servicesStatus?.system_status !== undefined) {
-      setSystemStatus(servicesStatus.system_status);
-    }
-  }, [servicesStatus?.system_status]);
 
   useEffect(() => {
     setSystemStatus(servicesStatus?.system_status);
@@ -76,10 +69,18 @@ const SideBar = () => {
       setServicesStatus((prev) => ({
         ...prev,
         ...Object.fromEntries(
-          Object.keys(prev)
-            .filter(key => key?.includes(IOTFields.target.service) || key?.includes(IOTFields.target.system))
-            .map(key => [key, command])
-        ),
+            Object.keys(prev)
+              .map((key) => {
+                if (key.includes(IOTFields.target.system) || key.includes(IOTFields.target.service)) {
+                  return [key, command];
+                }
+                else if (key in [DbDocuments.servicesStatus.air_cond_temp, DbDocuments.servicesStatus.headlight_brightness] && command === IOTFields.state.off) {
+                  return [key, 0];
+                }
+                return null;
+              })
+              .filter(Boolean)
+          )
       }));
 
       setSystemStatus(command);
